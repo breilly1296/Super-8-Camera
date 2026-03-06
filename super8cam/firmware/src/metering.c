@@ -1,8 +1,10 @@
 /**
  * metering.c — Photodiode ADC -> EV -> f-stop -> galvanometer + LEDs.
- * All constants from config.h; all pins from pinmap.h.
- * See the root-level metering.c for the full implementation.
- * This is the refactored version using centralized config.
+ *
+ * 8-point calibration LUT (ADC 0 -> EV 2, ADC 4095 -> EV 17).
+ * f-stop to needle PWM mapping via log2 scale.
+ * Exposure status: green LED if within +/- 0.5 EV, red blink otherwise.
+ * Battery monitoring via ADC channel 1 with 2:1 voltage divider.
  */
 
 #include "metering.h"
@@ -13,25 +15,29 @@
 
 extern volatile uint32_t g_tick_ms;
 
-static float current_ev = 0, current_fstop = 0;
-static uint16_t current_asa = 100;
+static float    current_ev    = 0;
+static float    current_fstop = 0;
+static uint16_t current_asa   = 100;
+static uint16_t battery_mv    = 0;
+
+/* Moving average filter for metering ADC */
 static uint16_t filter_buf[METER_FILTER_SIZE];
-static uint8_t filter_idx = 0;
-static uint32_t filter_sum = 0;
-static uint8_t filter_full = 0;
+static uint8_t  filter_idx  = 0;
+static uint32_t filter_sum  = 0;
+static uint8_t  filter_full = 0;
 static uint32_t last_sample_ms = 0;
 
-static const uint16_t asa_table[] = { 50, 100, 200, 500 };
+/* Calibration LUT */
+static const uint16_t cal_adc[METER_CAL_LEN] = METER_CAL_ADC;
+static const float    cal_ev[METER_CAL_LEN]  = METER_CAL_EV;
 
-/* Calibration LUT: mV -> EV at ISO 100 */
-static const struct { uint16_t mv; float ev; } cal[] = {
-    {10,1},{30,2},{70,4},{130,6},{230,7},{400,8},{650,9},
-    {950,10},{1350,11},{1800,12},{2300,13},{2800,14},{3250,17},
-};
-#define CAL_LEN (sizeof(cal)/sizeof(cal[0]))
+/* ASA table */
+static const uint16_t asa_table[]    = ASA_TABLE;
+static const float    asa_ev_off[]   = ASA_EV_OFFSET_TABLE;
 
-static uint16_t adc_read(void)
+static uint16_t adc_read_channel(uint32_t channel)
 {
+    ADC1->CHSELR = (1U << channel);
     ADC1->CR |= ADC_CR_ADSTART;
     while (!(ADC1->ISR & ADC_ISR_EOC));
     return (uint16_t)ADC1->DR;
@@ -43,47 +49,61 @@ static uint16_t filter_push(uint16_t raw)
     filter_buf[filter_idx] = raw;
     filter_sum += raw;
     if (++filter_idx >= METER_FILTER_SIZE) { filter_idx = 0; filter_full = 1; }
-    return (uint16_t)(filter_sum / (filter_full ? METER_FILTER_SIZE : filter_idx));
+    uint8_t count = filter_full ? METER_FILTER_SIZE : filter_idx;
+    return (count > 0) ? (uint16_t)(filter_sum / count) : raw;
 }
 
-static float lut_interp(uint32_t mv)
+static float lut_interp(uint16_t adc_val)
 {
-    if (mv <= cal[0].mv) return cal[0].ev;
-    if (mv >= cal[CAL_LEN-1].mv) return cal[CAL_LEN-1].ev;
-    for (unsigned i = 1; i < CAL_LEN; i++) {
-        if (mv <= cal[i].mv) {
-            float f = (float)(mv - cal[i-1].mv) / (cal[i].mv - cal[i-1].mv);
-            return cal[i-1].ev + f * (cal[i].ev - cal[i-1].ev);
+    if (adc_val <= cal_adc[0]) return cal_ev[0];
+    if (adc_val >= cal_adc[METER_CAL_LEN - 1]) return cal_ev[METER_CAL_LEN - 1];
+    for (uint8_t i = 1; i < METER_CAL_LEN; i++) {
+        if (adc_val <= cal_adc[i]) {
+            float f = (float)(adc_val - cal_adc[i-1]) / (float)(cal_adc[i] - cal_adc[i-1]);
+            return cal_ev[i-1] + f * (cal_ev[i] - cal_ev[i-1]);
         }
     }
-    return cal[CAL_LEN-1].ev;
+    return cal_ev[METER_CAL_LEN - 1];
+}
+
+/* Map f-stop to needle PWM (0-999) on log2 scale */
+static uint16_t fstop_to_pwm(float fstop)
+{
+    if (fstop <= FSTOP_MIN) return 0;
+    if (fstop >= FSTOP_MAX) return NEEDLE_PWM_PERIOD;
+    float frac = (log2f(fstop) - log2f(FSTOP_MIN))
+               / (log2f(FSTOP_MAX) - log2f(FSTOP_MIN));
+    return (uint16_t)(frac * (float)NEEDLE_PWM_PERIOD);
 }
 
 void meter_init(void)
 {
+    /* Enable ADC clock */
     RCC->APB2ENR |= RCC_APB2ENR_ADCEN;
+
+    /* PA0 (meter) and PA1 (battery) as analog */
     GPIOA->MODER |= (3U << (PIN_ADC_METER_PIN * 2));
-    if (ADC1->CR & ADC_CR_ADEN) { ADC1->CR |= ADC_CR_ADDIS; while (ADC1->CR & ADC_CR_ADEN); }
-    ADC1->CR |= ADC_CR_ADCAL; while (ADC1->CR & ADC_CR_ADCAL);
-    ADC1->CFGR1 &= ~(ADC_CFGR1_RES | ADC_CFGR1_ALIGN);
-    ADC1->SMPR = 0x05U;
-    ADC1->CHSELR = (1U << PIN_ADC_METER_CHANNEL);
+    GPIOA->MODER |= (3U << (PIN_ADC_BATT_PIN * 2));
+
+    /* ADC calibration and init */
+    if (ADC1->CR & ADC_CR_ADEN) {
+        ADC1->CR |= ADC_CR_ADDIS;
+        while (ADC1->CR & ADC_CR_ADEN);
+    }
+    ADC1->CR |= ADC_CR_ADCAL;
+    while (ADC1->CR & ADC_CR_ADCAL);
+
+    ADC1->CFGR1 &= ~(ADC_CFGR1_RES | ADC_CFGR1_ALIGN);  /* 12-bit, right-aligned */
+    ADC1->SMPR = 0x05U;  /* 39.5 ADC clock cycles sampling */
     ADC1->ISR |= ADC_ISR_ADRDY;
     ADC1->CR |= ADC_CR_ADEN;
     while (!(ADC1->ISR & ADC_ISR_ADRDY));
 
-    /* Galvanometer PWM TIM22 */
-    RCC->APB2ENR |= RCC_APB2ENR_TIM22EN;
-    GPIOA->MODER = (GPIOA->MODER & ~(3U << (PIN_PWM_NEEDLE_PIN*2))) | (2U << (PIN_PWM_NEEDLE_PIN*2));
-    GPIOA->AFR[0] = (GPIOA->AFR[0] & ~(0xFU << (PIN_PWM_NEEDLE_PIN*4))) | (PIN_PWM_NEEDLE_AF << (PIN_PWM_NEEDLE_PIN*4));
-    TIM22->PSC = 15; TIM22->ARR = 999; TIM22->CCR1 = 0;
-    TIM22->CCMR1 = (TIM22->CCMR1 & ~0x7FU) | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1PE;
-    TIM22->CCER |= TIM_CCER_CC1E; TIM22->CR1 |= TIM_CR1_ARPE;
-    TIM22->EGR = TIM_EGR_UG; TIM22->CR1 |= TIM_CR1_CEN;
-
-    /* LEDs */
-    GPIOA->MODER = (GPIOA->MODER & ~(3U<<(PIN_LED_GREEN_PIN*2))) | (1U<<(PIN_LED_GREEN_PIN*2));
-    GPIOA->MODER = (GPIOA->MODER & ~(3U<<(PIN_LED_RED_PIN*2))) | (1U<<(PIN_LED_RED_PIN*2));
+    /* LEDs: PB6 (red) and PB7 (green) as output */
+    GPIOB->MODER = (GPIOB->MODER & ~(3U << (PIN_LED_RED_PIN * 2)))
+                 |  (1U << (PIN_LED_RED_PIN * 2));
+    GPIOB->MODER = (GPIOB->MODER & ~(3U << (PIN_LED_GREEN_PIN * 2)))
+                 |  (1U << (PIN_LED_GREEN_PIN * 2));
 }
 
 void meter_update(void)
@@ -92,40 +112,55 @@ void meter_update(void)
     if ((now - last_sample_ms) < (1000U / METER_SAMPLE_HZ)) return;
     last_sample_ms = now;
 
-    uint16_t avg = filter_push(adc_read());
-    uint32_t mv = ((uint32_t)avg * ADC_VREF_MV) / ADC_RESOLUTION;
-    float ev100 = lut_interp(mv);
+    /* Read and filter metering ADC */
+    uint16_t avg = filter_push(adc_read_channel(PIN_ADC_METER_CHANNEL));
+    float ev100 = lut_interp(avg);
 
+    /* Read film speed DIP switches */
     uint8_t bits = 0;
     if (PIN_DIP0_PORT->IDR & (1U << PIN_DIP0_PIN)) bits |= 1;
     if (PIN_DIP1_PORT->IDR & (1U << PIN_DIP1_PIN)) bits |= 2;
     current_asa = asa_table[bits];
 
-    uint8_t fps = (PIN_FPS_SEL_PORT->IDR & (1U << PIN_FPS_SEL_PIN)) ? 24 : 18;
-    float shutter = (fps == 24) ? (1.0f/48) : (1.0f/36);
-    float ev = ev100 + log2f((float)current_asa / 100.0f);
+    /* Compute EV adjusted for ASA */
+    float ev = ev100 + asa_ev_off[bits];
     current_ev = ev;
+
+    /* Compute f-stop from EV and shutter speed */
+    uint8_t fps = (PIN_FPS_SEL_PORT->IDR & (1U << PIN_FPS_SEL_PIN)) ? FPS_HIGH : FPS_LOW;
+    float shutter = (fps == FPS_HIGH) ? (1.0f / 48.0f) : (1.0f / 36.0f);
     float nsq = powf(2.0f, ev) * shutter;
     current_fstop = (nsq > 0) ? sqrtf(nsq) : 0;
 
-    /* Galvanometer */
-    float f_min = 1.4f, f_max = 22.0f;
-    float frac = 0;
-    if (current_fstop > f_min && current_fstop < f_max)
-        frac = (log2f(current_fstop) - log2f(f_min)) / (log2f(f_max) - log2f(f_min));
-    else if (current_fstop >= f_max) frac = 1.0f;
-    TIM22->CCR1 = (uint16_t)(frac * 999);
+    /* Update galvanometer needle via TIM2 CH2 */
+    TIM2->CCR2 = fstop_to_pwm(current_fstop);
 
-    /* LEDs */
-    if (current_fstop >= f_min) {
-        GPIOA->BSRR = (1U << PIN_LED_GREEN_PIN);
-        GPIOA->BSRR = (1U << (PIN_LED_RED_PIN + 16));
+    /* Exposure status LEDs */
+    if (current_fstop >= FSTOP_MIN && current_fstop <= FSTOP_MAX) {
+        /* In range: green on, red off */
+        PIN_LED_GREEN_PORT->BSRR = (1U << PIN_LED_GREEN_PIN);
+        PIN_LED_RED_PORT->BSRR   = (1U << (PIN_LED_RED_PIN + 16));
     } else {
-        GPIOA->BSRR = (1U << (PIN_LED_GREEN_PIN + 16));
-        GPIOA->BSRR = ((now / 200) & 1) ? (1U << PIN_LED_RED_PIN) : (1U << (PIN_LED_RED_PIN+16));
+        /* Out of range: red blink at 2.5 Hz, green off */
+        PIN_LED_GREEN_PORT->BSRR = (1U << (PIN_LED_GREEN_PIN + 16));
+        PIN_LED_RED_PORT->BSRR   = ((now / 200) & 1)
+                                  ? (1U << PIN_LED_RED_PIN)
+                                  : (1U << (PIN_LED_RED_PIN + 16));
+    }
+
+    /* Battery voltage (every 10th sample to reduce ADC switching) */
+    static uint8_t batt_div = 0;
+    if (++batt_div >= 10) {
+        batt_div = 0;
+        uint16_t batt_raw = adc_read_channel(PIN_ADC_BATT_CHANNEL);
+        uint32_t batt_adc_mv = ((uint32_t)batt_raw * ADC_VREF_MV) / ADC_RESOLUTION;
+        battery_mv = (uint16_t)(batt_adc_mv * VBAT_DIVIDER_RATIO);
     }
 }
 
-float meter_get_ev(void) { return current_ev; }
-float meter_get_fstop(void) { return current_fstop; }
-uint16_t meter_get_asa(void) { return current_asa; }
+float    meter_get_ev(void)              { return current_ev; }
+float    meter_get_fstop(void)           { return current_fstop; }
+uint16_t meter_get_asa(void)             { return current_asa; }
+uint16_t meter_get_battery_mv(void)      { return battery_mv; }
+uint8_t  meter_is_low_battery(void)      { return battery_mv > 0 && battery_mv < VBAT_WARNING_MV; }
+uint8_t  meter_is_shutdown_battery(void) { return battery_mv > 0 && battery_mv < VBAT_SHUTDOWN_MV; }
