@@ -273,11 +273,35 @@ def run_interference():
 # =========================================================================
 
 def run_manufacturing():
-    """Generate manufacturing outputs."""
-    from super8cam.manufacturing.generate_bom import export_csv
+    """Generate manufacturing outputs: BOM (CSV + PDF), drawings, checklist."""
+    from super8cam.manufacturing.generate_bom import generate_all as bom_all
+    from super8cam.manufacturing.generate_drawings import generate_all as drawings_all
+    from super8cam.manufacturing.generate_checklist import generate_checklist
+
     print("\n  MANUFACTURING OUTPUTS")
     print("  " + "-" * 50)
-    export_csv(os.path.join(EXPORT_DIR, "bom.csv"))
+
+    # BOM (CSV + PDF)
+    bom_result = bom_all(EXPORT_DIR)
+    t = bom_result["totals"]
+    print(f"    BOM: {t['line_items']} items, "
+          f"${t['total_qty1']:.0f}/@1, "
+          f"${t['total_qty25']:.0f}/@25, "
+          f"${t['total_qty100']:.0f}/@100")
+
+    # Engineering drawings
+    drawing_dir = os.path.join(EXPORT_DIR, "drawings")
+    drawings = drawings_all(drawing_dir)
+    print(f"    Drawings: {len(drawings)} PDFs")
+
+    # Production checklist
+    checklist_path = generate_checklist(EXPORT_DIR)
+
+    return {
+        "bom": bom_result,
+        "drawings": drawings,
+        "checklist": checklist_path,
+    }
 
 
 # =========================================================================
@@ -492,47 +516,27 @@ def generate_build_report(
     lines.append("  BILL OF MATERIALS")
     lines.append("  " + "-" * 60)
     bom = generate_bom()
-    lines.append(f"    {'Category':<12s} {'Ref':<20s} {'Qty':>4s}  {'Description':<40s}  {'Usage'}")
-    lines.append("    " + "-" * 90)
+    lines.append(f"    {'#':<4s} {'Part No':<10s} {'Part Name':<25s} {'Qty':>4s}  {'M/B':<5s}  {'Cost @1':>10s}")
+    lines.append("    " + "-" * 70)
     for item in bom:
-        lines.append(f"    {item['category']:<12s} {item['ref']:<20s} {item['qty']:>4d}  "
-                      f"{item['description']:<40s}  {item['usage']}")
+        lines.append(f"    {item.item_number:<4d} {item.part_number:<10s} "
+                      f"{item.part_name:<25s} {item.qty:>4d}  "
+                      f"{item.make_or_buy:<5s}  ${item.cost_qty1:>8.2f}")
 
-    # Estimated costs (rough)
+    # Estimated costs from BOM
     lines.append("")
-    lines.append("  ESTIMATED COSTS (rough)")
+    lines.append("  ESTIMATED COSTS")
     lines.append("  " + "-" * 60)
-    cost_estimates = {
-        "brass_c360": 15.0,     # per part, small CNC
-        "alu_6061_t6": 8.0,     # per part
-        "steel_4140": 5.0,      # per part
-        "steel_302": 3.0,       # per part
-        "delrin_150": 2.0,      # per part (gear)
-    }
-    part_cost = 0.0
-    for usage, mat_key in MATERIAL_USAGE.items():
-        c = cost_estimates.get(mat_key, 5.0)
-        part_cost += c
-        lines.append(f"    {usage:25s}  {mat_key:15s}  ${c:.2f}")
-    # Fastener costs
-    fastener_cost = total_fasteners * 0.10
-    lines.append(f"    {'fasteners':25s}  {'mixed':15s}  ${fastener_cost:.2f}")
-    # Bearings
-    bearing_cost = len(BEARINGS) * 2.50
-    lines.append(f"    {'bearings':25s}  {'miniature':15s}  ${bearing_cost:.2f}")
-    # Motor
-    motor_cost = 5.00
-    lines.append(f"    {'motor':25s}  {MOTOR.model:15s}  ${motor_cost:.2f}")
-    # PCB
-    pcb_cost = 25.00
-    lines.append(f"    {'PCB (4-layer ENIG)':25s}  {'custom':15s}  ${pcb_cost:.2f}")
-    # Batteries
-    batt_cost = 4.00
-    lines.append(f"    {'batteries (4xAA)':25s}  {'alkaline':15s}  ${batt_cost:.2f}")
-
-    total_cost = part_cost + fastener_cost + bearing_cost + motor_cost + pcb_cost + batt_cost
-    lines.append(f"    {'':25s}  {'TOTAL':15s}  ${total_cost:.2f}")
-    lines.append(f"    (Note: machining labor not included)")
+    from super8cam.manufacturing.generate_bom import calculate_totals
+    totals = calculate_totals(bom)
+    for cat, data in sorted(totals["by_category"].items()):
+        lines.append(f"    {cat:20s}  @1: ${data['qty1']:>8.2f}  "
+                      f"@25: ${data['qty25']:>8.2f}  "
+                      f"@100: ${data['qty100']:>8.2f}")
+    lines.append(f"    {'TOTAL':20s}  @1: ${totals['total_qty1']:>8.2f}  "
+                  f"@25: ${totals['total_qty25']:>8.2f}  "
+                  f"@100: ${totals['total_qty100']:>8.2f}")
+    lines.append(f"    (Note: assembly labor not included)")
 
     lines.append("")
     lines.append(sep)
