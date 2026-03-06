@@ -1,0 +1,40 @@
+Reference,Value,Footprint,MPN,Description,Qty
+U1,STM32L031K6T6,LQFP-32_7x7mm_P0.8mm,STM32L031K6T6,ARM Cortex-M0+ MCU 32KB Flash,1
+U2,DRV8837,WSON-8_2x2mm_P0.5mm,DRV8837DSGR,1.8A H-bridge motor driver,1
+U3,MCP6001,SOT-23-5,MCP6001T-I/OT,1 MHz rail-to-rail op-amp,1
+U4,AMS1117-5.0,SOT-223-3,AMS1117-5.0,5V 1A LDO regulator,1
+U5,AMS1117-3.3,SOT-223-3,AMS1117-3.3,3.3V 1A LDO regulator,1
+Q1,SI2301,SOT-23,SI2301CDS-T1-GE3,P-channel MOSFET -20V -2.3A,1
+F1,500mA,Fuse_1206,MF-MSMF050-2,500mA resettable PTC fuse,1
+D1,BPW34,BPW34_DIL,BPW34,Silicon PIN photodiode,1
+R1,1M,R_0603,,TIA feedback resistor 1 MOhm,1
+C1,10pF,C_0603,,TIA feedback cap (bandwidth limit),1
+C10,100nF,C_0603,,Bypass cap U1 VDD,1
+C11,100nF,C_0603,,Bypass cap U1 VDDA,1
+C12,100nF,C_0603,,Bypass cap U2 VCC,1
+C13,100nF,C_0603,,Bypass cap U3 VDD,1
+C14,100nF,C_0603,,Bypass cap U4 output,1
+C15,100nF,C_0603,,Bypass cap U5 output,1
+C20,10uF,C_0805,,Bulk cap VIN rail,1
+C21,10uF,C_0805,,Bulk cap 5V rail,1
+C22,10uF,C_0805,,Bulk cap 3V3 rail,1
+C23,10uF,C_0805,,AMS1117-5.0 input cap,1
+C24,10uF,C_0805,,AMS1117-3.3 input cap,1
+R2,10K,R_0603,,Trigger pull-up to 3V3,1
+R3,10K,R_0603,,NRST pull-up to 3V3,1
+R4,330,R_0603,,Warning LED resistor,1
+R5,330,R_0603,,Green LED resistor,1
+R6,330,R_0603,,Red LED resistor,1
+R7,330,R_0603,,Low-bat LED resistor,1
+R8,330,R_0603,,Cart-empty LED resistor,1
+D2,LED_Red,LED_0603,,Fault/warning LED,1
+D3,LED_Green,LED_0603,,Exposure OK LED,1
+D4,LED_Red,LED_0603,,Exposure under LED,1
+D5,LED_Yellow,LED_0603,,Low battery LED,1
+D6,LED_Red,LED_0603,,Cartridge empty LED,1
+J1,JST_PH_4pin,JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical,B4B-PH-K-S,"Motor connector (A, B, ENC, GND)",1
+J2,JST_PH_2pin,JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical,B2B-PH-K-S,Battery input connector,1
+J3,ISP_6pin,PinHeader_2x03_P2.54mm_Vertical,,SWD programming header,1
+SW1,Trigger,SW_Push_SPST,,Trigger button SPST,1
+SW2,FPS_Toggle,SW_Toggle_SPDT,,18/24 FPS toggle switch,1
+SW3,DIP_2pos,DIP-02_SMD,,ASA select 2-bit DIP switch,1
