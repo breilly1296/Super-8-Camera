@@ -1,32 +1,158 @@
-"""Battery door — hinged cover for the battery compartment on the bottom."""
+"""Battery door — hinged cover for the battery compartment on the camera bottom.
+
+Features:
+  - Sized to cover the battery pocket opening plus 2mm overlap all around
+  - Piano hinge along one long edge (2× pin holes)
+  - Coin-slot latch on the opposite edge
+  - Spring contact placeholders on interior surface
+  - Light-trap step around perimeter (1mm groove)
+
+Material: 6061-T6 aluminum, black anodize.
+"""
 
 import cadquery as cq
-from super8cam.specs.master_specs import CAMERA
+from super8cam.specs.master_specs import CAMERA, FASTENERS
+
+# =========================================================================
+# DOOR DIMENSIONS
+# =========================================================================
+BATT_L = CAMERA.batt_pocket_l              # 58 mm — pocket length
+BATT_W = CAMERA.batt_pocket_w              # 30 mm — pocket width
+DOOR_THICK = CAMERA.batt_door_thick         # 2.0 mm
+
+OVERLAP = 2.0                               # mm — overlap beyond pocket opening
+DOOR_L = BATT_L + 2 * OVERLAP + 4.0        # 66 mm
+DOOR_W = BATT_W + 2 * OVERLAP + 4.0        # 38 mm
+FILLET = 1.5                                # mm — corner radius
+
+# =========================================================================
+# LIGHT TRAP
+# =========================================================================
+TRAP_GROOVE_W = 1.0                         # mm — groove width
+TRAP_GROOVE_DEPTH = 0.8                     # mm — step depth
+TRAP_INNER_L = DOOR_L - 2 * 3.0            # inner rectangle
+TRAP_INNER_W = DOOR_W - 2 * 3.0
+
+# =========================================================================
+# HINGE
+# =========================================================================
+HINGE_PIN_DIA = 1.5                         # mm
+HINGE_EAR_W = 4.0                           # mm — each ear
+HINGE_EAR_H = 3.0                           # mm — extends from door edge
+# Two hinge ears on the rear edge
+HINGE_SPACING = DOOR_L - 20.0              # mm — between hinge centers
+
+# =========================================================================
+# LATCH
+# =========================================================================
+LATCH_SLOT_W = 10.0                         # mm — coin slot width
+LATCH_SLOT_H = 2.0                          # mm — slot height
+LATCH_SLOT_DEPTH = 1.0                      # mm
+
+# =========================================================================
+# SPRING CONTACTS (interior placeholders)
+# =========================================================================
+CONTACT_DIA = 5.0                           # mm — spring button diameter
+CONTACT_HEIGHT = 1.0                        # mm — protrusion
+# 4 contacts for 4×AA batteries in 2×2 config
+CONTACT_POSITIONS = [
+    (-BATT_L / 4.0, -BATT_W / 4.0),        # cell 1
+    (-BATT_L / 4.0,  BATT_W / 4.0),        # cell 2
+    ( BATT_L / 4.0, -BATT_W / 4.0),        # cell 3
+    ( BATT_L / 4.0,  BATT_W / 4.0),        # cell 4
+]
 
 
 def build() -> cq.Workplane:
+    """Build the battery door.
+
+    Door lies in XY plane. Exterior face is -Z, interior (contacts) is +Z.
+    """
+    # --- Main door panel ---
     door = (
         cq.Workplane("XY")
-        .box(CAMERA.batt_pocket_l + 4, CAMERA.batt_pocket_w + 4,
-             CAMERA.batt_door_thick)
-        .edges("|Z").fillet(1.5)
+        .box(DOOR_L, DOOR_W, DOOR_THICK)
     )
+    try:
+        door = door.edges("|Z").fillet(FILLET)
+    except Exception:
+        pass
 
-    # Latch notch
-    door = (
-        door.faces(">Y").workplane()
-        .center(0, 0)
-        .rect(6.0, CAMERA.batt_door_thick - 0.5)
-        .cutBlind(-1.5)
+    # --- Light trap groove on interior face ---
+    # A step around the perimeter so the door overlaps the body opening
+    outer_step = (
+        cq.Workplane("XY")
+        .rect(DOOR_L - 2 * TRAP_GROOVE_W, DOOR_W - 2 * TRAP_GROOVE_W)
+        .extrude(TRAP_GROOVE_DEPTH)
+        .translate((0, 0, DOOR_THICK / 2.0 - TRAP_GROOVE_DEPTH))
     )
+    inner_step = (
+        cq.Workplane("XY")
+        .rect(TRAP_INNER_L, TRAP_INNER_W)
+        .extrude(TRAP_GROOVE_DEPTH + 0.1)
+        .translate((0, 0, DOOR_THICK / 2.0 - TRAP_GROOVE_DEPTH - 0.05))
+    )
+    groove = outer_step.cut(inner_step)
+    door = door.cut(groove)
 
-    # Hinge pin holes
-    pin_dia = 1.5
-    door = (
-        door.faces("<Y").workplane()
-        .pushPoints([(-CAMERA.batt_pocket_l / 2, 0),
-                     (CAMERA.batt_pocket_l / 2, 0)])
-        .hole(pin_dia)
+    # --- Coin-slot latch on front edge ---
+    latch_slot = (
+        cq.Workplane("XY")
+        .box(LATCH_SLOT_W, LATCH_SLOT_DEPTH, LATCH_SLOT_H)
+        .translate((0, -DOOR_W / 2.0 + LATCH_SLOT_DEPTH / 2.0, 0))
     )
+    door = door.cut(latch_slot)
+
+    # Latch catch (small detent tab extending from interior)
+    catch = (
+        cq.Workplane("XY")
+        .box(6.0, 1.5, 1.0)
+        .translate((0, -DOOR_W / 2.0 - 0.5, -DOOR_THICK / 2.0 + 0.5))
+    )
+    door = door.union(catch)
+
+    # --- Hinge ears on rear edge ---
+    for sign in [-1, 1]:
+        hx = sign * HINGE_SPACING / 2.0
+        ear = (
+            cq.Workplane("XY")
+            .box(HINGE_EAR_W, HINGE_EAR_H, DOOR_THICK)
+            .translate((hx, DOOR_W / 2.0 + HINGE_EAR_H / 2.0, 0))
+        )
+        door = door.union(ear)
+
+        # Hinge pin hole through ear
+        pin_hole = (
+            cq.Workplane("XZ")
+            .transformed(offset=(hx, 0, DOOR_W / 2.0 + HINGE_EAR_H / 2.0))
+            .circle(HINGE_PIN_DIA / 2.0)
+            .extrude(HINGE_EAR_W + 1.0)
+            .translate((-HINGE_EAR_W / 2.0 - 0.5, 0, 0))
+        )
+        door = door.cut(pin_hole)
+
+    # --- Spring contact placeholders on interior ---
+    for cx, cy in CONTACT_POSITIONS:
+        contact = (
+            cq.Workplane("XY")
+            .cylinder(CONTACT_HEIGHT, CONTACT_DIA / 2.0)
+            .translate((cx, cy, DOOR_THICK / 2.0 + CONTACT_HEIGHT / 2.0))
+        )
+        door = door.union(contact)
 
     return door
+
+
+def export(output_dir: str = "export"):
+    """Export STEP and STL."""
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+    solid = build()
+    cq.exporters.export(solid, f"{output_dir}/battery_door.step")
+    cq.exporters.export(solid, f"{output_dir}/battery_door.stl",
+                        tolerance=0.01, angularTolerance=0.1)
+    print(f"  Battery door exported to {output_dir}/")
+
+
+if __name__ == "__main__":
+    export()
