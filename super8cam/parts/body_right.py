@@ -18,6 +18,10 @@ import cadquery as cq
 from super8cam.specs.master_specs import (
     CAMERA, CMOUNT, CARTRIDGE, FASTENERS, BEARINGS,
 )
+from super8cam.parts.interfaces import (
+    make_dovetail_rail, make_snap_pocket,
+    DOVETAIL_DEPTH, M3_TAP_DIA,
+)
 
 # =========================================================================
 # BODY ENVELOPE (mirrors body_left.py)
@@ -256,6 +260,54 @@ def build() -> cq.Workplane:
         .translate((0, -2.0, 0))
     )
     shell = shell.cut(lug_hole)
+
+    # --- Dovetail rail on interior right wall (mirrors left side) ---
+    # Rail runs along Y (front-to-back), 30mm long, at film plane height (Z=0).
+    # Positioned on right interior wall, profile faces inward (-X direction).
+    RAIL_LENGTH = 30.0
+    rail_x = HALF_L - WALL - 4.0  # 4mm inset from interior wall surface
+    rail = (
+        make_dovetail_rail(RAIL_LENGTH)
+        .rotate((0, 0, 0), (0, 1, 0), -90)  # rotate profile to face -X
+        .translate((rail_x, 0, 0))
+    )
+    shell = shell.union(rail)
+
+    # 2× M3 tapped holes for thumbscrew retention alongside dovetail rail
+    for ty in [-10.0, 10.0]:
+        m3_hole = (
+            cq.Workplane("YZ")
+            .transformed(offset=(0, 0, ty))
+            .circle(M3_TAP_DIA / 2.0)
+            .extrude(8.0)
+            .translate((rail_x + DOVETAIL_DEPTH, 0, 0))
+        )
+        shell = shell.cut(m3_hole)
+
+    # --- 2× Snap pockets near top edge for top plate latches (right side) ---
+    PLATE_L_APPROX = BODY_L - 2.0
+    PLATE_D_APPROX = BODY_D - 2.0
+    snap_top_positions = [
+        (PLATE_L_APPROX / 2.0 - 8.0, -PLATE_D_APPROX / 2.0 + 8.0),  # front-right
+        (PLATE_L_APPROX / 2.0 - 8.0,  PLATE_D_APPROX / 2.0 - 8.0),  # rear-right
+    ]
+    for sx, sy in snap_top_positions:
+        if sx > 0:  # only right-side positions
+            pocket = (
+                make_snap_pocket()
+                .rotate((0, 0, 0), (1, 0, 0), 180)  # flip to receive downward latches
+                .translate((sx, sy, BODY_H / 2.0 - WALL))
+            )
+            shell = shell.cut(pocket)
+
+    # --- 2× Snap pockets near cartridge door opening for door latches ---
+    for dz in [-CART_DOOR_H / 4.0, CART_DOOR_H / 4.0]:
+        door_pocket = (
+            make_snap_pocket()
+            .rotate((0, 0, 0), (0, 0, 1), -90)  # orient for door engagement
+            .translate((HALF_L - WALL, -CART_DOOR_W / 2.0, CART_Z + dz))
+        )
+        shell = shell.cut(door_pocket)
 
     return shell
 

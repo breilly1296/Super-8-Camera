@@ -12,7 +12,8 @@ Interior face: matte black paint for anti-reflection.
 """
 
 import cadquery as cq
-from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.specs.master_specs import CAMERA, FASTENERS, DOOR_SPEC
+from super8cam.parts.interfaces import make_snap_latch
 
 # =========================================================================
 # DOOR DIMENSIONS
@@ -21,10 +22,10 @@ CART_DOOR_W = CAMERA.cart_door_w       # 60 mm — opening width
 CART_DOOR_H = CAMERA.cart_door_h       # 50 mm — opening height
 DOOR_THICK = CAMERA.cart_door_thick    # 2.5 mm
 
-OVERLAP = 2.0                          # mm — door overlaps body around opening
+OVERLAP = DOOR_SPEC.cart_overlap                     # was 2.0
 DOOR_W = CART_DOOR_W + 2 * OVERLAP     # 64 mm total
 DOOR_H = CART_DOOR_H + 2 * OVERLAP     # 54 mm total
-FILLET = 2.0                           # mm corner radius
+FILLET = DOOR_SPEC.cart_fillet                        # was 2.0
 
 # =========================================================================
 # LIGHT TRAP GROOVE
@@ -32,16 +33,16 @@ FILLET = 2.0                           # mm corner radius
 # The light trap is a 1mm wide, 1.5mm deep step around the entire inner
 # perimeter. The door's inner face has a raised rim that seats into a
 # matching groove in the body. This creates a labyrinth seal.
-TRAP_W = 1.0                           # mm — groove width
-TRAP_DEPTH = 1.5                       # mm — step depth
-TRAP_RIM_H = 1.5                       # mm — raised rim height on door interior
+TRAP_W = DOOR_SPEC.cart_trap_w                       # was 1.0
+TRAP_DEPTH = DOOR_SPEC.cart_trap_depth               # was 1.5
+TRAP_RIM_H = DOOR_SPEC.cart_trap_rim_h               # was 1.5
 
 # =========================================================================
 # HINGE (piano hinge along rear edge)
 # =========================================================================
-HINGE_PIN_DIA = 2.0                    # mm
-HINGE_KNUCKLE_DIA = 4.0               # mm — knuckle OD
-HINGE_KNUCKLE_W = 5.0                  # mm — each knuckle width
+HINGE_PIN_DIA = DOOR_SPEC.cart_hinge_pin_dia         # was 2.0
+HINGE_KNUCKLE_DIA = DOOR_SPEC.cart_hinge_knuckle_dia # was 4.0
+HINGE_KNUCKLE_W = DOOR_SPEC.cart_hinge_knuckle_w     # was 5.0
 # Two knuckles near top and bottom of door
 HINGE_SPACING = DOOR_H - 15.0         # mm between centers
 HINGE_Y = DOOR_W / 2.0                # on the rear edge (+Y in door frame)
@@ -50,17 +51,17 @@ HINGE_Y = DOOR_W / 2.0                # on the rear edge (+Y in door frame)
 # LATCH
 # =========================================================================
 # Spring-loaded button on front edge. A small cylinder with internal spring.
-LATCH_BUTTON_DIA = 6.0                # mm
-LATCH_BUTTON_LENGTH = 4.0             # mm — protrusion when unlatched
-LATCH_POCKET_DEPTH = 8.0              # mm — bore into door edge for mechanism
+LATCH_BUTTON_DIA = DOOR_SPEC.cart_latch_button_dia   # was 6.0
+LATCH_BUTTON_LENGTH = DOOR_SPEC.cart_latch_button_length  # was 4.0
+LATCH_POCKET_DEPTH = DOOR_SPEC.cart_latch_pocket_depth    # was 8.0
 LATCH_Y = -DOOR_W / 2.0              # on front edge (-Y in door frame)
 
 # =========================================================================
 # INTERIOR FEATURES
 # =========================================================================
 # Foam pad recess (light seal backup — self-adhesive foam strip)
-FOAM_W = 3.0                           # mm — width of foam channel
-FOAM_DEPTH = 1.0                       # mm — recess depth
+FOAM_W = DOOR_SPEC.cart_foam_w                       # was 3.0
+FOAM_DEPTH = DOOR_SPEC.cart_foam_depth               # was 1.0
 # Foam runs around the full perimeter just inside the light trap
 
 
@@ -159,6 +160,19 @@ def build() -> cq.Workplane:
         .translate((0, -LATCH_BUTTON_LENGTH, 0))
     )
     door = door.union(button)
+
+    # --- 2× Snap latches for redundant light-tight retention ---
+    # Positioned at ±DOOR_H/4.0, on front edge (-Y side), alongside
+    # the existing spring-button latch for additional seal force.
+    for sign in [-1, 1]:
+        latch = (
+            make_snap_latch()
+            .rotate((0, 0, 0), (0, 0, 1), 90)  # orient for door engagement
+            .translate((sign * DOOR_H / 4.0,
+                        -DOOR_W / 2.0,
+                        0))
+        )
+        door = door.union(latch)
 
     return door
 

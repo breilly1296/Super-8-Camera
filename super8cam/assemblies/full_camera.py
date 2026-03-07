@@ -92,17 +92,17 @@ LENS_X = CAMERA.lens_mount_offset_x  # -18.0 mm
 # Main shaft axis: above optical axis, at lens mount X position
 # Shaft runs along X (left-right), centered at the lens mount position
 SHAFT_X = LENS_X
-SHAFT_Z = 12.0  # mm above optical axis center (above film gate)
+SHAFT_Z = 16.0  # mm above optical axis center (raised from 12→16 to clear gate)
 SHAFT_Y = SHUTTER_CENTER_Y  # aligned with shutter disc
 
 # Gearbox: to the right of the shaft, behind the gate
-GEARBOX_X = SHAFT_X + 30.0
-GEARBOX_Y = SHAFT_Y + 10.0
-GEARBOX_Z = SHAFT_Z - 15.0
+GEARBOX_X = SHAFT_X + 35.0    # shifted right 5mm for gear clearance
+GEARBOX_Y = SHAFT_Y + 12.0    # shifted back 2mm for housing clearance
+GEARBOX_Z = SHAFT_Z - 18.0    # lowered 3mm to clear body cavity
 
 # Motor: attached to gearbox housing
 MOTOR_X = GEARBOX_X
-MOTOR_Y = GEARBOX_Y + MOTOR.body_length / 2.0 + 5.0
+MOTOR_Y = GEARBOX_Y + MOTOR.body_length / 2.0 + 3.0  # reduced gap (was +5)
 MOTOR_Z = GEARBOX_Z
 
 # Claw mechanism: below film gate, accessing perforations
@@ -111,24 +111,24 @@ CLAW_Y = GATE_CENTER_Y
 CLAW_Z = -FILM.reg_pin_below_frame_center
 
 # Cam on shaft (lateral to claw)
-CAM_X = LENS_X - FILM.width / 2.0 - 8.0
+CAM_X = LENS_X - FILM.width / 2.0 - 10.0  # shifted 2mm further from gate
 CAM_Y = SHAFT_Y
 CAM_Z = SHAFT_Z
 
 # Cartridge receiver: right side of body, centered vertically
-CART_X = CAMERA.body_length / 4.0
+CART_X = CAMERA.body_length / 4.0 + 2.0  # shifted right 2mm
 CART_Y = 0.0
-CART_Z = 5.0
+CART_Z = 3.0   # lowered 2mm from 5→3
 
 # PCB: left wall, above bottom plate
 PCB_X = CAMERA.pcb_mount_offset_x
 PCB_Y = 0.0
-PCB_Z = -CAMERA.body_height / 2.0 + CAMERA.wall_thickness + CAMERA.pcb_standoff_height
+PCB_Z = -CAMERA.body_height / 2.0 + CAMERA.wall_thickness + CAMERA.pcb_standoff_height + 2.0  # raised 2mm
 
 # Viewfinder: above and left of lens mount
 VF_X = LENS_X - VF_OFFSET_LEFT
 VF_Y = -CAMERA.body_depth / 2.0
-VF_Z = SHAFT_Z + VF_OFFSET_UP
+VF_Z = SHAFT_Z + VF_OFFSET_UP - 2.0  # lowered 2mm to keep within top plate
 
 # Trigger: front face, below and left
 TRIGGER_X = -10.0

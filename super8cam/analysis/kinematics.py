@@ -14,7 +14,7 @@ source of truth for claw motion.
 import math
 import numpy as np
 from super8cam.specs.master_specs import (
-    FILM, CAMERA, SHUTTER, GEARBOX, MOTOR,
+    FILM, CAMERA, SHUTTER, GEARBOX, MOTOR, ANALYSIS,
 )
 from super8cam.parts.cam_follower import cam_profile_full
 
@@ -24,21 +24,21 @@ from super8cam.parts.cam_follower import cam_profile_full
 
 # Film mass for force calculation
 # PET base density ~1.39 g/cm³, film cross-section per frame
-FILM_DENSITY_G_CM3 = 1.39
+FILM_DENSITY_G_CM3 = ANALYSIS.film_density_g_cm3
 FILM_FRAME_VOLUME_CM3 = (FILM.width * FILM.perf_pitch * FILM.thickness) / 1000.0
 FILM_FRAME_MASS_KG = FILM_DENSITY_G_CM3 * FILM_FRAME_VOLUME_CM3 / 1000.0
 
 # Friction coefficient: film on brass gate (lubricated by silicone)
-MU_FILM_GATE = 0.15
+MU_FILM_GATE = ANALYSIS.mu_film_gate
 
 # Pressure plate force (from pressure_plate.py design)
-PRESSURE_PLATE_FORCE_N = 0.5
+PRESSURE_PLATE_FORCE_N = CAMERA.pressure_plate_force_n
 
 # Gravity component (negligible but included for completeness)
 G_M_S2 = 9.81
 
 # Maximum allowable perforation force (Kodak spec: 1.5 N, our limit: 1.0 N)
-MAX_PERF_FORCE_N = 1.0
+MAX_PERF_FORCE_N = ANALYSIS.max_perf_force_n
 
 
 # =========================================================================
@@ -238,7 +238,7 @@ def motor_speed_check() -> dict:
             "shaft_rpm": shaft_rpm,
             "motor_rpm": motor_rpm,
             "headroom_pct": headroom,
-            "feasible": motor_rpm < MOTOR.no_load_rpm * 0.9,
+            "feasible": motor_rpm <= MOTOR.no_load_rpm * 0.9,
         }
     return results
 
@@ -299,8 +299,7 @@ def plot_claw_path(fps: int = 24, save_path: str = None):
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=8)
     # Shade exposure window
-    ax.axvspan(SHUTTER.phase1_start, SHUTTER.phase1_end, alpha=0.1, color="yellow",
-               label="Shutter open")
+    ax.axvspan(SHUTTER.phase1_start, SHUTTER.phase1_end, alpha=0.1, color="yellow")
 
     # 3. Horizontal displacement vs angle
     ax = axes[0, 2]

@@ -11,7 +11,8 @@ Material: 6061-T6 aluminum, black anodize.
 """
 
 import cadquery as cq
-from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.specs.master_specs import CAMERA, FASTENERS, DOOR_SPEC
+from super8cam.parts.interfaces import make_snap_latch
 
 # =========================================================================
 # DOOR DIMENSIONS
@@ -20,40 +21,40 @@ BATT_L = CAMERA.batt_pocket_l              # 58 mm — pocket length
 BATT_W = CAMERA.batt_pocket_w              # 30 mm — pocket width
 DOOR_THICK = CAMERA.batt_door_thick         # 2.0 mm
 
-OVERLAP = 2.0                               # mm — overlap beyond pocket opening
+OVERLAP = DOOR_SPEC.batt_overlap                    # was 2.0
 DOOR_L = BATT_L + 2 * OVERLAP + 4.0        # 66 mm
 DOOR_W = BATT_W + 2 * OVERLAP + 4.0        # 38 mm
-FILLET = 1.5                                # mm — corner radius
+FILLET = DOOR_SPEC.batt_fillet                       # was 1.5
 
 # =========================================================================
 # LIGHT TRAP
 # =========================================================================
-TRAP_GROOVE_W = 1.0                         # mm — groove width
-TRAP_GROOVE_DEPTH = 0.8                     # mm — step depth
+TRAP_GROOVE_W = DOOR_SPEC.batt_trap_groove_w         # was 1.0
+TRAP_GROOVE_DEPTH = DOOR_SPEC.batt_trap_groove_depth  # was 0.8
 TRAP_INNER_L = DOOR_L - 2 * 3.0            # inner rectangle
 TRAP_INNER_W = DOOR_W - 2 * 3.0
 
 # =========================================================================
 # HINGE
 # =========================================================================
-HINGE_PIN_DIA = 1.5                         # mm
-HINGE_EAR_W = 4.0                           # mm — each ear
-HINGE_EAR_H = 3.0                           # mm — extends from door edge
+HINGE_PIN_DIA = DOOR_SPEC.batt_hinge_pin_dia         # was 1.5
+HINGE_EAR_W = DOOR_SPEC.batt_hinge_ear_w             # was 4.0
+HINGE_EAR_H = DOOR_SPEC.batt_hinge_ear_h             # was 3.0
 # Two hinge ears on the rear edge
 HINGE_SPACING = DOOR_L - 20.0              # mm — between hinge centers
 
 # =========================================================================
 # LATCH
 # =========================================================================
-LATCH_SLOT_W = 10.0                         # mm — coin slot width
-LATCH_SLOT_H = 2.0                          # mm — slot height
-LATCH_SLOT_DEPTH = 1.0                      # mm
+LATCH_SLOT_W = DOOR_SPEC.batt_latch_slot_w            # was 10.0
+LATCH_SLOT_H = DOOR_SPEC.batt_latch_slot_h            # was 2.0
+LATCH_SLOT_DEPTH = DOOR_SPEC.batt_latch_slot_depth    # was 1.0
 
 # =========================================================================
 # SPRING CONTACTS (interior placeholders)
 # =========================================================================
-CONTACT_DIA = 5.0                           # mm — spring button diameter
-CONTACT_HEIGHT = 1.0                        # mm — protrusion
+CONTACT_DIA = DOOR_SPEC.batt_contact_dia              # was 5.0
+CONTACT_HEIGHT = DOOR_SPEC.batt_contact_height         # was 1.0
 # 4 contacts for 4×AA batteries in 2×2 config
 CONTACT_POSITIONS = [
     (-BATT_L / 4.0, -BATT_W / 4.0),        # cell 1
@@ -95,21 +96,18 @@ def build() -> cq.Workplane:
     groove = outer_step.cut(inner_step)
     door = door.cut(groove)
 
-    # --- Coin-slot latch on front edge ---
-    latch_slot = (
-        cq.Workplane("XY")
-        .box(LATCH_SLOT_W, LATCH_SLOT_DEPTH, LATCH_SLOT_H)
-        .translate((0, -DOOR_W / 2.0 + LATCH_SLOT_DEPTH / 2.0, 0))
-    )
-    door = door.cut(latch_slot)
-
-    # Latch catch (small detent tab extending from interior)
-    catch = (
-        cq.Workplane("XY")
-        .box(6.0, 1.5, 1.0)
-        .translate((0, -DOOR_W / 2.0 - 0.5, -DOOR_THICK / 2.0 + 0.5))
-    )
-    door = door.union(catch)
+    # --- 2× Snap latches on front edge (replacing coin-slot latch) ---
+    # Latches at ±DOOR_L/4.0 on front edge, oriented to hook downward (-Z)
+    # for engagement with bottom plate snap pockets.
+    for sign in [-1, 1]:
+        latch = (
+            make_snap_latch()
+            .rotate((0, 0, 0), (1, 0, 0), 180)  # hook faces downward (-Z)
+            .translate((sign * DOOR_L / 4.0,
+                        -DOOR_W / 2.0,
+                        -DOOR_THICK / 2.0))
+        )
+        door = door.union(latch)
 
     # --- Hinge ears on rear edge ---
     for sign in [-1, 1]:

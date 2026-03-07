@@ -12,6 +12,7 @@ The viewfinder is offset 5mm left and sits on top.
 
 import cadquery as cq
 from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.parts.interfaces import make_snap_latch, make_dovetail_rail
 
 # =========================================================================
 # PLATE DIMENSIONS
@@ -100,33 +101,25 @@ def build() -> cq.Workplane:
     )
     plate = plate.cut(spring_recess)
 
-    # --- Viewfinder mount holes (2× M2 through-holes) ---
-    vf_mount_pts = [
-        (VF_X, -VF_TAB_SPACING / 2.0),
-        (VF_X,  VF_TAB_SPACING / 2.0),
-    ]
-    plate = (
-        plate.faces(">Z").workplane()
-        .pushPoints(vf_mount_pts)
-        .hole(M2.clearance_hole, PLATE_THICK)
+    # --- Viewfinder dovetail rail on top surface ---
+    # Replaces M2 screw holes; viewfinder now slides onto dovetail.
+    # Rail along Y axis at X = VF_X (-5mm), 40mm long, raised above surface.
+    VF_RAIL_LENGTH = 40.0
+    vf_rail = (
+        make_dovetail_rail(VF_RAIL_LENGTH)
+        .translate((VF_X, 0, PLATE_THICK / 2.0))
     )
+    plate = plate.union(vf_rail)
 
-    # --- Plate mounting holes (4× M2.5 clearance) ---
-    plate = (
-        plate.faces(">Z").workplane()
-        .pushPoints(PLATE_MOUNT_POSITIONS)
-        .hole(M25.clearance_hole, PLATE_THICK)
-    )
-
-    # --- Counterbores for M2.5 heads ---
+    # --- 4× Snap latches replacing M2.5 screw holes ---
+    # Latches oriented downward (-Z) to engage snap pockets in body halves.
     for px, py in PLATE_MOUNT_POSITIONS:
-        cbore = (
-            cq.Workplane("XY")
-            .transformed(offset=(px, py, PLATE_THICK / 2.0))
-            .circle(M25.head_dia / 2.0 + 0.2)
-            .extrude(-M25.head_height - 0.3)
+        latch = (
+            make_snap_latch()
+            .rotate((0, 0, 0), (1, 0, 0), 180)  # hook faces downward (-Z)
+            .translate((px, py, -PLATE_THICK / 2.0))
         )
-        plate = plate.cut(cbore)
+        plate = plate.union(latch)
 
     # --- Strap lug on right side ---
     lug = (

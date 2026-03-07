@@ -1,4 +1,27 @@
+# Build outputs
+export/*.step
+export/*.stl
+export/*.pdf
+export/*.csv
+export/*.txt
+export/drawings/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-export/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# PlatformIO
+.pio/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

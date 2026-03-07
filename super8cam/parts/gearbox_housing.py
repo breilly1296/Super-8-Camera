@@ -3,7 +3,7 @@
 import cadquery as cq
 from super8cam.specs.master_specs import GEARBOX, CAMERA, BEARINGS
 
-WALL = 2.0  # mm
+WALL = CAMERA.gearbox_housing_wall  # was 2.0
 HOUSING_DEPTH = GEARBOX.gear_face_width + 2 * WALL + 2.0  # axial depth
 
 

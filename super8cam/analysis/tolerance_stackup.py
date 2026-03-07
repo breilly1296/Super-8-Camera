@@ -25,7 +25,7 @@ Each stack-up includes:
 
 import math
 from super8cam.specs.master_specs import (
-    FILM, CMOUNT, CAMERA, TOL, BEARINGS, MATERIALS,
+    FILM, CMOUNT, CAMERA, TOL, BEARINGS, MATERIALS, ANALYSIS,
 )
 
 
@@ -110,65 +110,52 @@ def flange_distance_stackup() -> dict:
     """Analyze the C-mount flange-to-film-plane dimension chain.
 
     Chain (from lens mount face to film plane):
-      + Lens boss protrusion (mount face → body front wall)
-      + Front wall thickness (body front wall → interior)
-      + Interior space to shutter front face
-      — Shutter disc thickness
-      + Shutter-to-gate gap
-      + Gate plate thickness
-      — Gate channel depth (film surface recessed in channel)
+      + Mount face to shutter front face (machined bore depth)
+      + Shutter disc thickness
+      + Shutter-to-gate clearance (gap)
+      + Gate front face to film surface (gate_thick - channel_depth)
 
     Must equal 17.526 mm ± 0.02 mm.
 
-    Note: The boss protrusion is measured from the body front face forward.
-    The mount face sits at the outer end of the boss. The total chain from
-    mount face backward through the body to the film plane must equal the
-    flange focal distance.
-
-    Simplified chain (as built):
-      mount_face → body_front_wall:  -lens_boss_protrusion
-      body_front_wall → shutter:     wall_thickness
-      shutter thickness:              shutter_thickness
-      shutter → gate_front:          shutter_to_gate_clearance
-      gate_front → film_surface:     gate_plate_thick - gate_channel_depth
-
-    Total = wall + boss + shutter_thick + gap + (gate_thick - channel_depth)
+    This chain matches the validated stack-up in parts/lens_mount.py:
+      MOUNT_TO_SHUTTER_FRONT = 17.526 - 3.80 - 0.30 - 0.80 = 12.626 mm
     """
+    # Import the validated mount-to-shutter distance from lens_mount
+    from super8cam.parts.lens_mount import MOUNT_TO_SHUTTER_FRONT
+    from super8cam.parts.film_gate import GATE_THICK, CHANNEL_DEPTH
+    from super8cam.parts.shutter_disc import DISC_THICK, GATE_CLEARANCE
+
+    gate_to_film = GATE_THICK - CHANNEL_DEPTH  # 4.0 - 0.20 = 3.80 mm
+
     contributors = [
         StackUpContributor(
-            name="Lens boss protrusion",
-            nominal=CAMERA.lens_boss_protrusion,
-            tolerance=TOL.cnc_general,
+            name="Mount face to shutter front",
+            nominal=MOUNT_TO_SHUTTER_FRONT,
+            tolerance=0.01,
             sensitivity=+1.0,
-            note="CNC machined boss, general tolerance"),
-        StackUpContributor(
-            name="Front wall thickness",
-            nominal=CAMERA.wall_thickness,
-            tolerance=TOL.cnc_general,
-            sensitivity=+1.0,
-            note="Body wall, general CNC"),
+            note="Jig-bored mount cavity, 10um tolerance"),
         StackUpContributor(
             name="Shutter disc thickness",
-            nominal=CAMERA.shutter_thickness,
-            tolerance=0.02,
+            nominal=DISC_THICK,
+            tolerance=0.005,
             sensitivity=+1.0,
-            note="Sheet aluminum, precision ground"),
+            note="Precision ground aluminum disc"),
         StackUpContributor(
             name="Shutter-to-gate clearance",
-            nominal=CAMERA.shutter_to_gate_clearance,
+            nominal=GATE_CLEARANCE,
             tolerance=TOL.shutter_clearance,
             sensitivity=+1.0,
-            note="Controlled by shim/spacer"),
+            note="Precision ground shim sets gap"),
         StackUpContributor(
-            name="Gate plate (front to film surface)",
-            nominal=CAMERA.gate_plate_thick - CAMERA.gate_channel_depth,
-            tolerance=TOL.cnc_fine,
+            name="Gate front to film surface",
+            nominal=gate_to_film,
+            tolerance=0.01,
             sensitivity=+1.0,
-            note="Precision ground brass gate, fine tolerance"),
+            note="Precision ground/lapped brass gate"),
     ]
 
     target = CMOUNT.flange_focal_dist  # 17.526 mm
-    target_tol = 0.02  # ±0.02 mm acceptance
+    target_tol = ANALYSIS.flange_acceptance_tol  # ±0.02 mm acceptance
 
     result = compute_stackup(contributors, target, target_tol)
 
@@ -218,31 +205,31 @@ def registration_accuracy() -> dict:
         StackUpContributor(
             name="Perforation size (Kodak spec)",
             nominal=0.0,
-            tolerance=0.02,
+            tolerance=ANALYSIS.perf_size_tolerance,
             sensitivity=1.0,
             note="Kodak film manufacturing tolerance"),
         StackUpContributor(
             name="Gate-to-body alignment",
             nominal=0.0,
-            tolerance=TOL.cnc_fine,  # 0.02 mm
+            tolerance=ANALYSIS.gate_body_alignment,
             sensitivity=1.0,
-            note="Dowel pin alignment, precision bore"),
+            note="Dowel pin alignment, H6 precision bore"),
         StackUpContributor(
             name="Claw pulldown accuracy",
             nominal=0.0,
-            tolerance=0.005,
+            tolerance=ANALYSIS.claw_pulldown_accuracy,
             sensitivity=1.0,
-            note="Cam profile machining + follower clearance"),
+            note="Cam profile + guided claw (0.03mm/side clearance)"),
         StackUpContributor(
             name="Film stretch under tension",
             nominal=0.0,
-            tolerance=0.003,
+            tolerance=ANALYSIS.film_stretch_tolerance,
             sensitivity=1.0,
             note="PET base elastic strain at 0.5N: "
                  "ΔL = F·L / (E·A) ≈ 0.003mm per frame"),
     ]
 
-    target_accuracy = 0.025  # mm — Kodak spec
+    target_accuracy = ANALYSIS.kodak_registration_spec  # mm — Kodak spec
 
     result = compute_stackup(contributors, target=0.0,
                              target_tol=target_accuracy)
@@ -284,16 +271,16 @@ def shutter_gate_clearance_stackup() -> dict:
     # With two bearings spanning ~10mm, the angular play produces a
     # radial deflection at the shutter disc position.
     # Worst case: both bearings at max play, same direction.
-    bearing_radial_play = 0.010  # mm (10 μm per bearing, one side)
+    bearing_radial_play = ANALYSIS.bearing_radial_play  # mm (10 μm per bearing, one side)
 
     # Shaft span from bearing to shutter disc center
     # Bearing span ~10mm, shutter disc at ~5mm beyond front bearing
-    bearing_span = 10.0  # mm approximate
-    shutter_overhang = 5.0  # mm past front bearing
+    bearing_span = ANALYSIS.bearing_span  # mm approximate
+    shutter_overhang = ANALYSIS.shutter_overhang  # mm past front bearing
     angular_tilt_factor = (bearing_span + shutter_overhang) / bearing_span
 
     # Disc flatness: 0.8mm thick aluminum disc, typical flatness
-    disc_flatness = 0.02  # mm (precision stamped + ground)
+    disc_flatness = ANALYSIS.disc_flatness  # mm (precision stamped + ground)
 
     # Temperature differential: motor heats aluminum body (23.6 ppm/K),
     # brass gate is more stable (20.5 ppm/K). At ΔT=5°C:
@@ -340,7 +327,7 @@ def shutter_gate_clearance_stackup() -> dict:
         StackUpContributor(
             name="Gate plate flatness",
             nominal=0.0,
-            tolerance=0.01,
+            tolerance=ANALYSIS.gate_flatness,
             sensitivity=-1.0,
             note="Precision lapped brass"),
         StackUpContributor(
@@ -367,7 +354,7 @@ def shutter_gate_clearance_stackup() -> dict:
 
     min_clearance_worst = nominal_gap - worst_case_reduction
     min_clearance_rss = nominal_gap - rss_reduction
-    design_min = 0.05  # mm — minimum acceptable clearance
+    design_min = ANALYSIS.design_min_clearance  # mm — minimum acceptable clearance
 
     return {
         "nominal_gap_mm": nominal_gap,

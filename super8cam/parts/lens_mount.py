@@ -48,15 +48,15 @@ assert STACK_ERROR < 0.001, (
 # =========================================================================
 # BOSS GEOMETRY
 # =========================================================================
-BOSS_OD = 30.0                          # mm — outer diameter of mount boss
-BOSS_PROTRUSION = 5.0                   # mm — protrudes from camera front face
+BOSS_OD = CAMERA.lens_boss_od                     # was 30.0
+BOSS_PROTRUSION = CAMERA.lens_boss_protrusion      # was 5.0
 
 # Thread: 1"-32 TPI, modeled as plain bore at major diameter
 THREAD_MAJOR_DIA = CMOUNT.thread_major_dia    # 25.4 mm
 THREAD_DEPTH = CMOUNT.thread_depth            # 3.8 mm
 
 # Clearance bore behind the thread (opens into shutter cavity)
-CLEARANCE_BORE_DIA = 26.0              # mm — clears lens rear element
+CLEARANCE_BORE_DIA = CAMERA.lens_clearance_bore_dia  # was 26.0
 
 # Total mount depth (from mount face into camera body)
 # The boss protrudes BOSS_PROTRUSION out and extends further inward.
@@ -66,8 +66,8 @@ CLEARANCE_BORE_DIA = 26.0              # mm — clears lens rear element
 MOUNT_BODY_DEPTH = MOUNT_TO_SHUTTER_FRONT  # from mount face to shutter front
 
 # Anti-rotation locating pin (12 o'clock position)
-LOCATING_PIN_DIA = 1.5                 # mm
-LOCATING_PIN_DEPTH = 2.0               # mm — blind hole in mount face
+LOCATING_PIN_DIA = CAMERA.lens_locating_pin_dia      # was 1.5
+LOCATING_PIN_DEPTH = CAMERA.lens_locating_pin_depth  # was 2.0
 LOCATING_PIN_RADIUS = THREAD_MAJOR_DIA / 2.0 + 1.5  # mm from center
 
 # Flange seating surface: annular ring on mount face
@@ -77,7 +77,7 @@ FLANGE_SEAT_OD = BOSS_OD - 1.0         # outer edge (leave 0.5mm chamfer)
 # Mounting: 3× M2 radial holes for securing boss to camera body
 M2_CLEARANCE = FASTENERS["M2x5_shcs"].clearance_hole  # 2.2 mm
 MOUNT_HOLE_RADIUS = BOSS_OD / 2.0 - 2.0  # mm from center
-MOUNT_HOLE_ANGLES = [0, 120, 240]         # degrees
+MOUNT_HOLE_ANGLES = CAMERA.lens_mount_hole_angles    # was [0, 120, 240]
 
 
 def build() -> cq.Workplane:

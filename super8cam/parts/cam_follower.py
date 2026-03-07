@@ -15,7 +15,7 @@ import math
 import numpy as np
 import cadquery as cq
 from super8cam.specs.master_specs import (
-    FILM, CAMERA, MATERIALS, MATERIAL_USAGE,
+    FILM, CAMERA, MATERIALS, MATERIAL_USAGE, CAM_SPEC,
 )
 
 MATERIAL = MATERIALS[MATERIAL_USAGE["cam"]]
@@ -23,55 +23,55 @@ MATERIAL = MATERIALS[MATERIAL_USAGE["cam"]]
 # =========================================================================
 # CAM DISC (pulldown face cam)
 # =========================================================================
-CAM_OD = 16.0              # mm — outer diameter of disc
-CAM_BORE = CAMERA.shaft_dia  # 4.0 mm — main shaft bore
-CAM_THICK = 3.0             # mm — axial thickness
-CAM_KEYWAY_W = 1.0          # mm — drive keyway width
-CAM_KEYWAY_DEPTH = 0.5      # mm
+CAM_OD = CAM_SPEC.cam_od
+CAM_BORE = CAMERA.shaft_dia
+CAM_THICK = CAM_SPEC.cam_thick
+CAM_KEYWAY_W = CAM_SPEC.cam_keyway_w
+CAM_KEYWAY_DEPTH = CAM_SPEC.cam_keyway_depth
 
 # Groove in front face
-GROOVE_W = 1.5              # mm — groove width
-GROOVE_DEPTH = 1.0          # mm — groove depth into face
-GROOVE_TRACK_R_MIN = 4.5    # mm — inner edge of groove center at dwell
-GROOVE_TRACK_R_MAX = 4.5 + FILM.perf_pitch  # ~8.734 mm — after pulldown lift
+GROOVE_W = CAM_SPEC.groove_w
+GROOVE_DEPTH = CAM_SPEC.groove_depth
+GROOVE_TRACK_R_MIN = CAM_SPEC.groove_track_r_min
+GROOVE_TRACK_R_MAX = CAM_SPEC.groove_track_r_min + FILM.perf_pitch
 
 # =========================================================================
 # SECONDARY ECCENTRIC (engage / retract)
 # =========================================================================
-ECCENTRIC_OD = 10.0         # mm — outer diameter
-ECCENTRIC_BORE = CAM_BORE   # mm — same shaft
-ECCENTRIC_THICK = 3.0       # mm
-ECCENTRIC_OFFSET = 0.8      # mm — eccentricity (produces ~2mm claw travel via link)
-ECCENTRIC_PHASE = 90.0      # degrees ahead of pulldown cam
+ECCENTRIC_OD = CAM_SPEC.eccentric_od
+ECCENTRIC_BORE = CAMERA.shaft_dia
+ECCENTRIC_THICK = CAM_SPEC.eccentric_thick
+ECCENTRIC_OFFSET = CAM_SPEC.eccentric_offset
+ECCENTRIC_PHASE = CAM_SPEC.eccentric_phase
 
 # =========================================================================
 # FOLLOWER PIN (rides in cam groove)
 # =========================================================================
-FOLLOWER_PIN_DIA = 0.8      # mm — rides in the 1.5mm groove
-FOLLOWER_PIN_LENGTH = 3.0   # mm
+FOLLOWER_PIN_DIA = CAM_SPEC.follower_pin_dia
+FOLLOWER_PIN_LENGTH = CAM_SPEC.follower_pin_length
 
 # =========================================================================
-# CONNECTING LINK (eccentric → claw horizontal motion)
+# CONNECTING LINK (eccentric -> claw horizontal motion)
 # =========================================================================
-LINK_LENGTH = 8.0           # mm — center-to-center
-LINK_W = 3.0                # mm — width
-LINK_THICK = 1.0            # mm — thickness
-LINK_BORE_ECCENTRIC = ECCENTRIC_OD + 0.1  # bearing bore on eccentric end
-LINK_BORE_CLAW = 1.5        # mm — pivot pin bore on claw end
+LINK_LENGTH = CAM_SPEC.link_length
+LINK_W = CAM_SPEC.link_w
+LINK_THICK = CAM_SPEC.link_thick
+LINK_BORE_ECCENTRIC = CAM_SPEC.eccentric_od + 0.1
+LINK_BORE_CLAW = CAM_SPEC.link_bore_claw
 
 # =========================================================================
 # GUIDE RAIL PINS (constrain claw to vertical travel)
 # =========================================================================
-GUIDE_PIN_DIA = 1.5         # mm
-GUIDE_PIN_LENGTH = 15.0     # mm
-GUIDE_PIN_SPACING = 10.0    # mm — between the two guide pins
+GUIDE_PIN_DIA = CAM_SPEC.guide_pin_dia
+GUIDE_PIN_LENGTH = CAM_SPEC.guide_pin_length
+GUIDE_PIN_SPACING = CAM_SPEC.guide_pin_spacing
 
 # =========================================================================
 # E-CLIP placeholders
 # =========================================================================
-ECLIP_OD = 3.0              # mm
-ECLIP_THICK = 0.3           # mm
-ECLIP_BORE = 1.5            # mm
+ECLIP_OD = CAM_SPEC.eclip_od
+ECLIP_THICK = CAM_SPEC.eclip_thick
+ECLIP_BORE = CAM_SPEC.eclip_bore
 
 
 # =========================================================================
@@ -119,13 +119,14 @@ def cam_profile_full(n_points: int = 360) -> dict:
         x = horizontal (positive = toward film, engage direction)
         y = vertical   (positive = upward, negative = pulldown direction)
 
-    Phase map (shaft angle θ):
-        0°–10°   : dwell at top  (claw at top, retracted)
-        10°–30°  : engage        (claw moves toward film horizontally)
-        30°–170° : pulldown      (claw pulls film down 4.234 mm)
-        170°–190°: retract       (claw moves away from film)
-        190°–350°: return        (claw returns to top, no film contact)
-        350°–360°: dwell at top  (film settling before next shutter open)
+    Phase map (shaft angle θ — wraps around 360°/0°):
+        190°–340°: pulldown      (claw pulls film down 4.234 mm)
+        340°–350°: retract       (claw moves away from film)
+        350°–5°  : engage        (claw moves toward film horizontally)
+        5°–10°   : dwell         (registration pin engages, film settled)
+        10°–180° : shutter OPEN  (exposure — film stationary, pin engaged)
+        180°–185°: reg pin disengages
+        185°–190°: shutter CLOSES
 
     Returns dict with arrays: theta_deg, x_mm, y_mm, vx_mm_per_deg,
     vy_mm_per_deg, ax, ay.
@@ -135,49 +136,50 @@ def cam_profile_full(n_points: int = 360) -> dict:
     y = np.zeros(n_points)  # vertical (pulldown)
 
     stroke_v = FILM.perf_pitch  # 4.234 mm vertical pulldown
-    stroke_h = 2.0              # mm horizontal engage/retract
+    stroke_h = CAM_SPEC.stroke_h  # mm horizontal engage/retract
 
     for i, th in enumerate(theta):
         # ----- VERTICAL (y) -----
-        if th < 10.0:
-            # Dwell at top
+        if th < 5.0:
+            # Claw at top, returning from engage (wrap from 350°)
             y[i] = 0.0
-        elif th < 30.0:
-            # Engage phase — vertical stays at top
-            y[i] = 0.0
-        elif th < 170.0:
-            # Pulldown: modified trapezoidal 30°→170° (140° arc)
-            t_norm = (th - 30.0) / 140.0
-            y[i] = -stroke_v * _modified_trapezoid(t_norm)
         elif th < 190.0:
+            # Dwell at top — film stationary, shutter open 10°-180°
+            y[i] = 0.0
+        elif th < 340.0:
+            # Pulldown: modified trapezoidal 190°→340° (150° arc)
+            t_norm = (th - 190.0) / 150.0
+            y[i] = -stroke_v * _modified_trapezoid(t_norm)
+        elif th < 350.0:
             # Retract — vertical stays at bottom
             y[i] = -stroke_v
-        elif th < 350.0:
-            # Return stroke: 190°→350° (160° arc) — sine return
-            t_norm = (th - 190.0) / 160.0
-            y[i] = -stroke_v * (1.0 - (1.0 - math.cos(math.pi * t_norm)) / 2.0)
         else:
-            # Dwell at top (350°→360°): film settling before shutter opens
-            y[i] = 0.0
+            # Return stroke: 350°→360°+5° (15° arc) — sine return
+            # Quick return to top over 15° (350°→365° wraps to 5°)
+            t_norm = (th - 350.0) / 15.0
+            y[i] = -stroke_v * (1.0 - (1.0 - math.cos(math.pi * t_norm)) / 2.0)
 
         # ----- HORIZONTAL (x) -----
-        if th < 10.0:
-            # Retracted
-            x[i] = 0.0
-        elif th < 30.0:
-            # Engage: smooth sine 10°→30°
-            t_norm = (th - 10.0) / 20.0
+        if th < 5.0:
+            # Engage wrapping from 350°: 350°→5° = 15° arc
+            # At th=0, we're 10° into the 15° engage arc
+            t_norm = (th + 10.0) / 15.0  # 10°→15° portion
             x[i] = stroke_h * (1.0 - math.cos(math.pi * t_norm)) / 2.0
-        elif th < 170.0:
-            # Engaged — full depth
-            x[i] = stroke_h
         elif th < 190.0:
-            # Retract: smooth sine 170°→190°
-            t_norm = (th - 170.0) / 20.0
+            # Engaged — full depth (dwell + exposure)
+            x[i] = stroke_h
+        elif th < 340.0:
+            # Engaged during pulldown
+            x[i] = stroke_h
+        elif th < 350.0:
+            # Retract: smooth sine 340°→350°
+            t_norm = (th - 340.0) / 10.0
             x[i] = stroke_h * (1.0 + math.cos(math.pi * t_norm)) / 2.0
         else:
-            # Retracted
-            x[i] = 0.0
+            # Engage: smooth sine 350°→5° (15° arc)
+            # At 350°, we're 0° into the arc
+            t_norm = (th - 350.0) / 15.0  # 0°→10° portion
+            x[i] = stroke_h * (1.0 - math.cos(math.pi * t_norm)) / 2.0
 
     # Numerical derivatives (per degree)
     d_theta = theta[1] - theta[0]

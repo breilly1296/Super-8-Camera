@@ -25,6 +25,10 @@ import cadquery as cq
 from super8cam.specs.master_specs import (
     CAMERA, CMOUNT, MOTOR, GEARBOX, BEARINGS, FASTENERS, PCB,
 )
+from super8cam.parts.interfaces import (
+    make_dovetail_rail, make_snap_pocket,
+    DOVETAIL_DEPTH, M3_TAP_DIA,
+)
 
 # =========================================================================
 # BODY ENVELOPE
@@ -249,6 +253,47 @@ def build() -> cq.Workplane:
     )
     tripod_boss_left = tripod_boss.intersect(clip_left)
     shell = shell.union(tripod_boss_left)
+
+    # --- Dovetail rail on interior left wall (film transport interface) ---
+    # Rail runs along Y (front-to-back), 30mm long, at film plane height (Z=0).
+    # Positioned on left interior wall, profile faces inward (+X direction).
+    RAIL_LENGTH = 30.0
+    rail_x = -HALF_L + WALL + 4.0  # 4mm inset from interior wall surface
+    rail = (
+        make_dovetail_rail(RAIL_LENGTH)
+        .rotate((0, 0, 0), (0, 1, 0), 90)   # rotate profile to face +X
+        .translate((rail_x, 0, 0))
+    )
+    shell = shell.union(rail)
+
+    # 2× M3 tapped holes for thumbscrew retention alongside dovetail rail
+    m3 = FASTENERS["M3x8_shcs"]
+    for ty in [-10.0, 10.0]:
+        m3_hole = (
+            cq.Workplane("YZ")
+            .transformed(offset=(0, 0, ty))
+            .circle(M3_TAP_DIA / 2.0)
+            .extrude(8.0)
+            .translate((rail_x - DOVETAIL_DEPTH, 0, 0))
+        )
+        shell = shell.cut(m3_hole)
+
+    # --- 2× Snap pockets near top edge for top plate latches (left side) ---
+    # Positioned to match PLATE_MOUNT_POSITIONS left-side columns from top_plate.py
+    PLATE_L_APPROX = BODY_L - 2.0
+    PLATE_D_APPROX = BODY_D - 2.0
+    snap_top_positions = [
+        (-PLATE_L_APPROX / 2.0 + 8.0, -PLATE_D_APPROX / 2.0 + 8.0),  # front-left
+        (-PLATE_L_APPROX / 2.0 + 8.0,  PLATE_D_APPROX / 2.0 - 8.0),  # rear-left
+    ]
+    for sx, sy in snap_top_positions:
+        if sx < 0:  # only left-side positions
+            pocket = (
+                make_snap_pocket()
+                .rotate((0, 0, 0), (1, 0, 0), 180)  # flip to receive downward latches
+                .translate((sx, sy, BODY_H / 2.0 - WALL))
+            )
+            shell = shell.cut(pocket)
 
     return shell
 

@@ -11,7 +11,7 @@ All dimensions reference master_specs and the film gate geometry.
 import math
 import cadquery as cq
 from super8cam.specs.master_specs import (
-    FILM, CAMERA, FASTENERS, MATERIALS, MATERIAL_USAGE,
+    FILM, CAMERA, FASTENERS, MATERIALS, MATERIAL_USAGE, PP_SPEC,
 )
 from super8cam.parts.film_gate import (
     GATE_W, GATE_H, GATE_THICK, CHANNEL_DEPTH, RAIL_W, RAIL_H,
@@ -21,29 +21,29 @@ from super8cam.parts.film_gate import (
 MATERIAL = MATERIALS[MATERIAL_USAGE["pressure_plate"]]
 
 # Plate body
-PLATE_W = 22.0           # mm — slightly smaller than gate
-PLATE_H = 18.0           # mm
-PLATE_THICK = 0.3        # mm — thin spring steel
+PLATE_W = PP_SPEC.plate_w              # mm — slightly smaller than gate
+PLATE_H = PP_SPEC.plate_h              # mm
+PLATE_THICK = PP_SPEC.plate_thick      # mm — thin spring steel
 
 # Raised contact pads — align with gate's pressure rails
-PAD_W = 3.0              # mm — width (X direction, matches rail area)
-PAD_L = 12.0             # mm — length (Y direction, along film travel)
-PAD_H = 0.05             # mm — raised above plate surface
+PAD_W = PP_SPEC.pad_w                  # mm — width (X direction, matches rail area)
+PAD_L = PP_SPEC.pad_l                  # mm — length (Y direction, along film travel)
+PAD_H = PP_SPEC.pad_h                  # mm — raised above plate surface
 
 # Aperture window in plate (larger than film frame for clearance)
-WINDOW_CLEARANCE = 0.5   # mm — each side beyond film frame
+WINDOW_CLEARANCE = PP_SPEC.window_clearance  # mm — each side beyond film frame
 WINDOW_W = FILM.frame_w + 2 * WINDOW_CLEARANCE
 WINDOW_H = FILM.frame_h + 2 * WINDOW_CLEARANCE
 
 # Leaf spring geometry (cantilever beams from top and bottom edges)
-SPRING_COUNT = 2         # one from top, one from bottom
-SPRING_W = 4.0           # mm — beam width
-SPRING_L = 6.0           # mm — free cantilever length
+SPRING_COUNT = PP_SPEC.spring_count    # one from top, one from bottom
+SPRING_W = PP_SPEC.spring_w            # mm — beam width
+SPRING_L = PP_SPEC.spring_l            # mm — free cantilever length
 SPRING_THICK = PLATE_THICK  # same thickness as plate body
 
 # Material properties for spring calculation
 E_301SS = 193e3          # MPa (193 GPa) — Young's modulus for 301 SS
-TARGET_FORCE_N = 0.5     # N — total force from both springs
+TARGET_FORCE_N = CAMERA.pressure_plate_force_n  # N — total force from both springs
 
 # Mounting: M2 clearance holes matching gate bolt pattern
 M2_CLEARANCE = FASTENERS["M2x5_shcs"].clearance_hole  # 2.2mm

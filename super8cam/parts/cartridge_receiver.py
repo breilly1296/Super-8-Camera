@@ -16,17 +16,17 @@ The cartridge pocket is open on the +X side (loading door).
 import math
 import cadquery as cq
 from super8cam.specs.master_specs import (
-    FILM, CARTRIDGE, CAMERA, FASTENERS, MATERIALS,
+    FILM, CARTRIDGE, CAMERA, FASTENERS, MATERIALS, RECV_SPEC,
 )
 
 # =========================================================================
 # POCKET DIMENSIONS
 # =========================================================================
-CLEARANCE = 0.5             # mm — all-around insertion clearance
+CLEARANCE = RECV_SPEC.pocket_clearance       # was 0.5
 POCKET_L = CARTRIDGE.length + 2 * CLEARANCE    # 68.0 mm
 POCKET_W = CARTRIDGE.width + 2 * CLEARANCE     # 63.0 mm
 POCKET_D = CARTRIDGE.depth + CLEARANCE          # 21.5 mm
-WALL = 2.0                  # mm — receiver wall thickness
+WALL = RECV_SPEC.pocket_wall                 # was 2.0
 
 # Open on +X side for cartridge insertion through loading door
 POCKET_OPEN_SIDE = "+X"
@@ -36,30 +36,30 @@ POCKET_OPEN_SIDE = "+X"
 # =========================================================================
 # Two 2mm diameter pins engage matching holes in the cartridge body.
 # These ensure the film exit slot aligns with the camera film gate.
-REG_PIN_DIA = 2.0           # mm
-REG_PIN_HEIGHT = 3.0        # mm — protrusion above pocket floor
-REG_PIN_FIT = 0.01          # mm — H7/h6 fit for alignment
+REG_PIN_DIA = RECV_SPEC.reg_pin_dia          # was 2.0
+REG_PIN_HEIGHT = RECV_SPEC.reg_pin_height    # was 3.0
+REG_PIN_FIT = RECV_SPEC.reg_pin_fit          # was 0.01
 
 # Pin positions relative to pocket center (matching Kodak cartridge holes).
 # The film exit slot is at CARTRIDGE.exit_slot_x from the left edge.
 # Pins are positioned to constrain the cartridge in X and Y:
 #   Pin 1: near the film exit slot (left of exit)
 #   Pin 2: diagonally opposite (right side, far from exit)
-REG_PIN_1_X = -(POCKET_L / 2.0 - CARTRIDGE.exit_slot_x - 5.0)  # near exit
-REG_PIN_1_Y = -(POCKET_W / 2.0 - 8.0)                           # near edge
-REG_PIN_2_X = POCKET_L / 2.0 - 12.0                              # far side
-REG_PIN_2_Y = POCKET_W / 2.0 - 8.0                               # opposite corner
+REG_PIN_1_X = -(POCKET_L / 2.0 - CARTRIDGE.exit_slot_x - RECV_SPEC.reg_pin1_offset_x)
+REG_PIN_1_Y = -(POCKET_W / 2.0 - RECV_SPEC.reg_pin1_offset_y)
+REG_PIN_2_X = POCKET_L / 2.0 - RECV_SPEC.reg_pin2_offset_x
+REG_PIN_2_Y = POCKET_W / 2.0 - RECV_SPEC.reg_pin2_offset_y
 
 # =========================================================================
 # TAKEUP DRIVE SPINDLE
 # =========================================================================
 # Cross-shaped tip engages the cartridge takeup spool socket.
 # Driven from the main shaft via a friction belt/gear (doesn't need precise speed).
-SPINDLE_DIA = 6.0           # mm — body diameter
-SPINDLE_TIP_DIA = 4.0       # mm — cross-shaped engagement tip
-SPINDLE_TIP_HEIGHT = 5.0    # mm — engagement depth into cartridge
-SPINDLE_CROSS_W = 1.5       # mm — width of each cross arm
-SPINDLE_TOTAL_H = 10.0      # mm — total spindle length
+SPINDLE_DIA = RECV_SPEC.spindle_dia          # was 6.0
+SPINDLE_TIP_DIA = RECV_SPEC.spindle_tip_dia  # was 4.0
+SPINDLE_TIP_HEIGHT = RECV_SPEC.spindle_tip_height  # was 5.0
+SPINDLE_CROSS_W = RECV_SPEC.spindle_cross_w  # was 1.5
+SPINDLE_TOTAL_H = RECV_SPEC.spindle_total_h  # was 10.0
 
 # Spindle position: aligned with cartridge takeup spool center
 SPINDLE_X = POCKET_L / 2.0 - CARTRIDGE.length + CARTRIDGE.takeup_spool_x
@@ -73,17 +73,17 @@ SPINDLE_POS_Y = 0.0  # in depth axis (Z), not Y
 # FRICTION CLUTCH
 # =========================================================================
 # Spring-loaded disc on the spindle base prevents film over-tension.
-CLUTCH_OD = 10.0            # mm
-CLUTCH_THICK = 1.5          # mm
-CLUTCH_SPRING_FORCE = 0.5   # N — slip torque ~1.5 mN·m
+CLUTCH_OD = RECV_SPEC.clutch_od              # was 10.0
+CLUTCH_THICK = RECV_SPEC.clutch_thick        # was 1.5
+CLUTCH_SPRING_FORCE = RECV_SPEC.clutch_spring_force  # was 0.5
 
 # =========================================================================
 # LEAF SPRING LATCH
 # =========================================================================
-LATCH_W = 8.0               # mm — spring width
-LATCH_L = 15.0              # mm — cantilever length
-LATCH_THICK = 0.5           # mm — spring steel
-LATCH_FORCE = 1.0           # N — holds cartridge down
+LATCH_W = RECV_SPEC.latch_w                 # was 8.0
+LATCH_L = RECV_SPEC.latch_l                 # was 15.0
+LATCH_THICK = RECV_SPEC.latch_thick          # was 0.5
+LATCH_FORCE = RECV_SPEC.latch_force          # was 1.0
 
 
 def build() -> cq.Workplane:

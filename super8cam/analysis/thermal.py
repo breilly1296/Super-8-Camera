@@ -26,7 +26,7 @@ but emulsion sensitivity drift begins above 35°C for color stocks).
 
 import math
 from super8cam.specs.master_specs import (
-    MOTOR, CAMERA, BATTERY, MATERIALS, GEARBOX, PCB, FILM,
+    MOTOR, CAMERA, BATTERY, MATERIALS, GEARBOX, PCB, FILM, ANALYSIS,
 )
 
 
@@ -53,24 +53,24 @@ MOTOR_FRICTION_POWER_W = (MOTOR.nominal_voltage
 #   1. Motor driver: MOSFET H-bridge (PWM), very low dropout (~0.1V × I_motor)
 #   2. Logic regulator: 3.3V LDO from battery (dropout = Vbat - 3.3V)
 
-LOGIC_VOLTAGE_V = 3.3
-LOGIC_CURRENT_MA = 50.0       # MCU + sensor + encoder circuit quiescent
-MOTOR_DRIVER_DROPOUT_V = 0.2  # MOSFET Rds_on × I_motor (approximate)
+LOGIC_VOLTAGE_V = ANALYSIS.logic_voltage_v               # was 3.3
+LOGIC_CURRENT_MA = ANALYSIS.logic_current_ma             # was 50.0
+MOTOR_DRIVER_DROPOUT_V = ANALYSIS.motor_driver_dropout_v # was 0.2
 
 # PCB components (LEDs, pull-ups, etc)
-PCB_MISC_POWER_MW = 30.0      # 30 mW miscellaneous
+PCB_MISC_POWER_MW = ANALYSIS.pcb_misc_power_mw           # was 30.0
 
 
 # =========================================================================
 # AMBIENT CONDITIONS
 # =========================================================================
-AMBIENT_TEMP_C = 25.0          # standard room temperature
-NATURAL_CONVECTION_H = 10.0   # W/m²·K — still air, vertical plate
-FORCED_CONVECTION_H = 25.0    # W/m²·K — if user is walking (light breeze)
+AMBIENT_TEMP_C = ANALYSIS.ambient_temp_c                 # was 25.0
+NATURAL_CONVECTION_H = ANALYSIS.natural_convection_h     # was 10.0
+FORCED_CONVECTION_H = ANALYSIS.forced_convection_h       # was 25.0
 
 # Film temperature limits
-FILM_ZONE_LIMIT_C = 35.0      # emulsion sensitivity drift onset (color)
-FILM_ABSOLUTE_LIMIT_C = 50.0  # base softening concern (long exposure)
+FILM_ZONE_LIMIT_C = ANALYSIS.film_zone_limit_c           # was 35.0
+FILM_ABSOLUTE_LIMIT_C = ANALYSIS.film_absolute_limit_c   # was 50.0
 
 
 # =========================================================================
@@ -108,7 +108,7 @@ def motor_heat(fps: int = 24) -> dict:
     # Motor current from linear speed-torque model:
     # I = I_noload + (I_stall - I_noload) × (1 - RPM/RPM_noload) × load_factor
     # The camera mechanism is a light load (~15% of rated torque).
-    load_factor = 0.15  # light mechanical load
+    load_factor = ANALYSIS.motor_load_factor  # light mechanical load
     rpm_fraction = motor_rpm / MOTOR.no_load_rpm
     current_ma = (MOTOR.no_load_current_ma +
                   (MOTOR.stall_current_ma - MOTOR.no_load_current_ma)
@@ -224,11 +224,11 @@ def motor_heat_estimate(fps: int = 24) -> dict:
     # Simplified: gate temp ≈ body_exterior + 0.3 × (motor_temp - body_exterior)
     # Motor temperature rises more than body (concentrated heat source).
     # Motor thermal resistance to body: ~10 K/W (small contact area)
-    motor_temp_rise = mh["total_motor_heat_w"] * 10.0  # K/W × W
+    motor_temp_rise = mh["total_motor_heat_w"] * ANALYSIS.motor_thermal_resistance  # K/W × W
     motor_temp = AMBIENT_TEMP_C + motor_temp_rise
 
     # Gate temperature: body exterior + fraction of motor-to-body gradient
-    gate_fraction = 0.3  # thermal coupling factor (0=body temp, 1=motor temp)
+    gate_fraction = ANALYSIS.gate_thermal_fraction  # thermal coupling factor (0=body temp, 1=motor temp)
     gate_temp_natural = (body_temp_natural +
                          gate_fraction * (motor_temp - body_temp_natural))
     gate_temp_forced = (body_temp_forced +

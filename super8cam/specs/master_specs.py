@@ -17,6 +17,14 @@ Organisation:
     BEARINGS    Bearing catalogue
     MOTOR       Motor specifications
     GEARBOX     Gear train parameters
+    CAM_SPEC    Cam and follower mechanism dimensions
+    SHAFT_DIMS  Main shaft section dimensions
+    TRIGGER_SPEC  Trigger lever and switch dimensions
+    VF_SPEC     Viewfinder tube and optics
+    DOOR_SPEC   Battery and cartridge door dimensions
+    PP_SPEC     Pressure plate dimensions
+    RECV_SPEC   Cartridge receiver, spindle, and latch
+    ANALYSIS    Analysis thresholds and physical constants
     PCB         Control board dimensions
     BATTERY     Power system
     SHUTTER     Shutter timing (derived)
@@ -148,12 +156,15 @@ class CameraDesign:
 
     # Shutter
     shutter_opening_angle: float = 180.0  # degrees (adjustable)
-    shutter_od: float = 30.0        # mm — disc outer diameter
+    shutter_od: float = 28.0        # mm — disc outer diameter
     shutter_thickness: float = 0.8  # mm — aluminum sheet
     shutter_shaft_hole: float = 4.0 # mm — matches main shaft
     shutter_keyway_w: float = 1.0   # mm
     shutter_keyway_depth: float = 0.5  # mm
     shutter_to_gate_clearance: float = 0.3  # mm
+    shutter_flag_w: float = 2.0     # mm — encoder flag notch width
+    shutter_flag_depth: float = 1.0 # mm — encoder flag radial depth
+    shutter_max_imbalance_gmm: float = 0.1  # g·mm — static imbalance limit
 
     # Frame rates
     fps_options: List[int] = field(default_factory=lambda: [18, 24])
@@ -163,13 +174,25 @@ class CameraDesign:
     shaft_length: float = 38.0      # mm — total usable length
 
     # Film gate (brass C360)
-    gate_plate_w: float = 25.0      # mm
-    gate_plate_h: float = 18.0      # mm
-    gate_plate_thick: float = 3.0   # mm
-    gate_channel_w: float = 8.0     # mm — film channel width
-    gate_channel_depth: float = 0.1 # mm
-    gate_lip_w: float = 0.8         # mm — pressure plate lip width
-    gate_lip_h: float = 0.05        # mm — lip protrusion
+    gate_plate_w: float = 24.0      # mm — overall gate width
+    gate_plate_h: float = 20.0      # mm — overall gate height (film travel dir)
+    gate_plate_thick: float = 4.0   # mm — overall gate thickness
+    gate_channel_w: float = 8.2     # mm — film channel width (film 8.0 + clearance)
+    gate_channel_depth: float = 0.20  # mm — film rides in this recess
+    gate_rail_w: float = 1.5        # mm — pressure plate contact rail width
+    gate_rail_h: float = 0.15       # mm — rail raised above channel floor
+    gate_aperture_taper: float = 0.2  # mm — total widening on lens side
+    gate_aperture_chamfer: float = 0.05  # mm — lens-side chamfer
+    gate_perf_slot_w: float = 1.5   # mm — perforation clearance slot width
+    gate_claw_slot_w: float = 2.0   # mm — claw access slot width
+    gate_claw_slot_h: float = 8.0   # mm — claw access slot height
+    gate_reg_pin_hole_dia: float = 0.82  # mm — H7 for 0.813mm pin press-fit
+    gate_reg_pin_protrusion: float = 0.5  # mm — pin protrusion into channel
+    gate_mount_pattern_x: float = 20.0   # mm — bolt pattern horizontal span
+    gate_mount_pattern_y: float = 16.0   # mm — bolt pattern vertical span
+    gate_m2_thread_depth: float = 3.0    # mm — thread depth for M2 screws
+    gate_dowel_dia: float = 2.0     # mm — alignment dowel pin diameter
+    gate_dowel_depth: float = 3.0   # mm — alignment dowel pin depth
     gate_fillet: float = 1.0        # mm — plate corner fillet
     gate_aperture_fillet: float = 0.15  # mm — aperture corner radius
 
@@ -185,16 +208,20 @@ class CameraDesign:
 
     # Claw mechanism
     claw_stroke: float = 4.234      # mm — equals perforation pitch
-    claw_tip_w: float = 0.7         # mm — must fit inside perforation
-    claw_tip_h: float = 0.6         # mm
+    claw_tip_w: float = 0.5         # mm — must fit inside perforation (1.143mm wide)
+    claw_tip_h: float = 0.3         # mm — tip thickness
+    claw_tip_radius: float = 0.1    # mm — fillet on tip to avoid tearing film
     claw_engage_depth: float = 0.5  # mm — into perforation
     claw_retract_dist: float = 2.5  # mm — clearance when retracted
-    claw_arm_length: float = 12.0   # mm — pivot to tip
-    claw_arm_w: float = 2.0         # mm
-    claw_arm_thick: float = 0.8     # mm
+    claw_arm_length: float = 15.0   # mm — pivot to tip
+    claw_arm_w: float = 3.0         # mm
+    claw_arm_thick: float = 1.0     # mm
+    claw_pivot_pin_dia: float = 1.5   # mm
+    claw_pivot_pin_length: float = 5.0  # mm — protrudes through arm + link
+    claw_eclip_groove_w: float = 0.4   # mm — e-clip groove width on pivot pin
 
-    # Cam follower (drives the claw)
-    cam_od: float = 12.0            # mm — cam lobe outer diameter
+    # Cam follower (drives the claw) — summary dims; see CAM_SPEC for full detail
+    cam_od: float = 16.0            # mm — cam disc outer diameter
     cam_id: float = 4.0             # mm — shaft bore (= shaft_dia)
     cam_width: float = 3.0          # mm — axial width
     cam_lobe_lift: float = 4.234    # mm — pulldown distance
@@ -205,9 +232,13 @@ class CameraDesign:
     film_channel_width: float = 8.2    # mm — slight clearance over film width
 
     # Lens mount boss
-    lens_boss_od: float = 32.0      # mm — outer diameter of mount boss
-    lens_boss_protrusion: float = 4.0  # mm — protrudes from front face
+    lens_boss_od: float = 30.0      # mm — outer diameter of mount boss
+    lens_boss_protrusion: float = 5.0  # mm — protrudes from front face
     lens_mount_offset_x: float = -18.0  # mm — left of body center
+    lens_clearance_bore_dia: float = 26.0  # mm — clears lens rear element
+    lens_locating_pin_dia: float = 1.5    # mm — anti-rotation pin at 12 o'clock
+    lens_locating_pin_depth: float = 2.0  # mm — blind hole depth
+    lens_mount_hole_angles: List[int] = field(default_factory=lambda: [0, 120, 240])
 
     # Cartridge door
     cart_door_w: float = 60.0       # mm
@@ -230,6 +261,10 @@ class CameraDesign:
     # Motor mount
     motor_mount_screws: int = 2
     motor_mount_screw_spacing: float = 15.0  # mm
+    motor_mount_bracket_thick: float = 3.0   # mm — motor cradle wall thickness
+
+    # Gearbox housing
+    gearbox_housing_wall: float = 2.0  # mm — gearbox enclosure wall thickness
 
     # Tripod mount
     tripod_boss_dia: float = 14.0   # mm
@@ -262,18 +297,18 @@ class Tolerances:
 
     # Registration pin
     reg_pin_dia_plus: float = 0.000     # mm — max oversize
-    reg_pin_dia_minus: float = 0.005    # mm — max undersize
-    reg_pin_position: float = 0.01      # mm — pin to aperture center
+    reg_pin_dia_minus: float = 0.002    # mm — max undersize
+    reg_pin_position: float = 0.005     # mm — pin to aperture center (jig-ground)
 
     # Shutter clearance
-    shutter_clearance: float = 0.05     # mm — on the 0.3mm nominal gap
+    shutter_clearance: float = 0.01     # mm — precision ground shim sets gap
 
     # General CNC machining
     cnc_general: float = 0.05           # mm
     cnc_fine: float = 0.02              # mm
 
     # Fits (ISO system)
-    press_fit_hole: str = "H7"          # hole tolerance band
+    press_fit_hole: str = "H6"          # hole tolerance band
     press_fit_shaft: str = "p6"         # shaft tolerance band
     bearing_seat: str = "H7"            # bearing housing bore
     bearing_shaft: str = "k6"           # shaft under bearing
@@ -506,20 +541,20 @@ MOTOR = MotorSpec()
 class GearboxSpec:
     """Gear reduction between motor and main shaft."""
 
-    ratio: float = 15.0             # motor turns : shaft turns
+    ratio: float = 6.0              # motor turns : shaft turns
     stages: int = 2                 # number of gear stages
 
     # Stage 1: motor pinion → intermediate gear
-    stage1_pinion_teeth: int = 10
-    stage1_gear_teeth: int = 50     # ratio = 5:1
+    stage1_pinion_teeth: int = 12
+    stage1_gear_teeth: int = 36     # ratio = 3:1
     stage1_module: float = 0.5      # mm — metric gear module
 
     # Stage 2: intermediate pinion → output gear
-    stage2_pinion_teeth: int = 12
-    stage2_gear_teeth: int = 36     # ratio = 3:1
+    stage2_pinion_teeth: int = 15
+    stage2_gear_teeth: int = 30     # ratio = 2:1
     stage2_module: float = 0.7      # mm
 
-    # Combined: 5 × 3 = 15:1
+    # Combined: 3 × 2 = 6:1
     gear_face_width: float = 3.0    # mm
     gear_pressure_angle: float = 20.0  # degrees
     gear_material: str = "delrin_150"
@@ -571,6 +606,366 @@ class GearboxSpec:
 
 
 GEARBOX = GearboxSpec()
+
+
+# =========================================================================
+# CAM & FOLLOWER MECHANISM
+# =========================================================================
+
+@dataclass(frozen=True)
+class CamSpec:
+    """Pulldown face cam, secondary eccentric, follower, and guide hardware."""
+
+    # Cam disc (pulldown face cam)
+    cam_od: float = 16.0            # mm — outer diameter of disc
+    cam_thick: float = 3.0          # mm — axial thickness
+    cam_keyway_w: float = 1.0       # mm — drive keyway width
+    cam_keyway_depth: float = 0.5   # mm
+
+    # Groove in front face
+    groove_w: float = 1.5           # mm — groove width
+    groove_depth: float = 1.0       # mm — groove depth into face
+    groove_track_r_min: float = 4.5 # mm — inner edge of groove at dwell
+
+    # Secondary eccentric (engage / retract)
+    eccentric_od: float = 10.0      # mm — outer diameter
+    eccentric_thick: float = 3.0    # mm
+    eccentric_offset: float = 0.8   # mm — eccentricity (produces ~2mm claw travel)
+    eccentric_phase: float = 90.0   # degrees ahead of pulldown cam
+
+    # Follower pin (rides in cam groove)
+    follower_pin_dia: float = 0.8   # mm — rides in the 1.5mm groove
+    follower_pin_length: float = 3.0  # mm
+
+    # Connecting link (eccentric → claw horizontal motion)
+    link_length: float = 8.0        # mm — center-to-center
+    link_w: float = 3.0             # mm — width
+    link_thick: float = 1.0         # mm — thickness
+    link_bore_claw: float = 1.5     # mm — pivot pin bore on claw end
+
+    # Guide rail pins (constrain claw to vertical travel)
+    guide_pin_dia: float = 1.5      # mm
+    guide_pin_length: float = 15.0  # mm
+    guide_pin_spacing: float = 10.0 # mm — between the two guide pins
+
+    # E-clip retaining clips
+    eclip_od: float = 3.0           # mm
+    eclip_thick: float = 0.3        # mm
+    eclip_bore: float = 1.5         # mm
+
+    # Horizontal claw stroke (engage/retract travel)
+    stroke_h: float = 2.0           # mm
+
+
+CAM_SPEC = CamSpec()
+
+
+# =========================================================================
+# MAIN SHAFT SECTIONS
+# =========================================================================
+
+@dataclass(frozen=True)
+class ShaftSpec:
+    """Stepped main shaft section dimensions.
+
+    Layout (rear to front): gear end → bearing 1 → cam → bearing 2 →
+    shutter → encoder end.  Bearing seats and shaft dia from CAMERA.
+    """
+
+    # Section 1: Gear end (rear)
+    sec1_dia: float = 3.0           # mm — reduced diameter for gear bore
+    sec1_len: float = 8.0           # mm
+    sec1_keyway_w: float = 0.6      # mm — gear drive keyway width
+    sec1_keyway_depth: float = 0.3  # mm
+
+    # Section 3: Cam section
+    sec3_len: float = 6.0           # mm — room for pulldown cam + eccentric
+    sec3_keyway_w: float = 1.0      # mm — cam drive keyway
+    sec3_keyway_depth: float = 0.5  # mm
+
+    # Section 5: Shutter section
+    sec5_len: float = 3.0           # mm
+
+    # Section 6: Encoder end (front)
+    sec6_dia: float = 3.0           # mm — reduced for encoder disc
+    sec6_len: float = 4.0           # mm
+    sec6_thread_dia: float = 3.0    # mm — M3 external thread
+    sec6_thread_len: float = 3.0    # mm — threaded length at tip
+
+    # Transitions
+    chamfer: float = 0.3            # mm — 45° chamfer at diameter transitions
+
+
+SHAFT_DIMS = ShaftSpec()
+
+
+# =========================================================================
+# TRIGGER MECHANISM
+# =========================================================================
+
+@dataclass(frozen=True)
+class TriggerSpec:
+    """Trigger lever, microswitch, and return spring dimensions."""
+
+    # Lever body
+    lever_length: float = 22.0      # mm — pivot to finger tip
+    lever_width: float = 10.0       # mm — across finger
+    lever_thick: float = 3.0        # mm — lever body thickness
+
+    # Finger pad
+    pad_l: float = 12.0             # mm — along lever
+    pad_w: float = 8.0              # mm — across finger
+    pad_depth: float = 0.8          # mm — concave depth for ergonomics
+
+    # Pivot
+    pivot_pin_dia: float = 2.0      # mm
+    pivot_bushing_od: float = 4.0   # mm — boss around pivot
+
+    # Internal actuator arm (extends past pivot toward microswitch)
+    arm_length: float = 8.0         # mm — from pivot toward switch
+    arm_thick: float = 2.0          # mm
+
+    # Microswitch placeholder
+    switch_l: float = 6.0           # mm
+    switch_w: float = 3.0           # mm
+    switch_h: float = 4.0           # mm
+    switch_button_dia: float = 1.0  # mm — actuator button
+    switch_button_h: float = 1.0    # mm — button protrusion
+
+    # Return spring
+    spring_od: float = 3.0          # mm
+    spring_free_length: float = 5.0 # mm
+    spring_wire_dia: float = 0.3    # mm
+    spring_post_dia: float = 1.5    # mm — post that guides the spring
+
+    # Total trigger travel
+    travel: float = 2.0             # mm — at the finger pad
+
+
+TRIGGER_SPEC = TriggerSpec()
+
+
+# =========================================================================
+# VIEWFINDER
+# =========================================================================
+
+@dataclass(frozen=True)
+class ViewfinderSpec:
+    """Galilean optical viewfinder tube, optics, and mounting."""
+
+    # Tube dimensions
+    tube_w: float = 10.0            # mm — width (horizontal)
+    tube_h: float = 8.0             # mm — height (vertical)
+    tube_length: float = 40.0       # mm — front to rear
+    tube_wall: float = 1.0          # mm — wall thickness
+
+    # Optical elements
+    lens_dia: float = 8.0           # mm — both elements
+    lens_thick: float = 1.5         # mm — disc thickness for modeling
+    front_focal_length: float = -20.0  # mm — plano-concave (diverging)
+    rear_focal_length: float = 30.0    # mm — plano-convex (eyepiece)
+    rear_element_z: float = 2.0     # mm from eye end
+    front_sag: float = 0.4          # mm — concave surface sag
+
+    # Bright-line frame
+    frame_wire_dia: float = 0.3     # mm — wire thickness
+
+    # Mounting tabs
+    tab_w: float = 6.0              # mm — each tab width
+    tab_h: float = 5.0              # mm — extends below tube
+    tab_thick: float = 2.0          # mm — thickness along optical axis
+    tab_spacing: float = 30.0       # mm — center-to-center along tube
+
+    # Viewfinder offset from taking lens
+    offset_up: float = 20.0         # mm — above optical axis
+    offset_left: float = 5.0        # mm — to the left
+
+    # Optical performance
+    fov_horizontal_deg: float = 42.0  # degrees — horizontal field of view
+    magnification: float = 0.5        # wide-angle for framing
+
+
+VF_SPEC = ViewfinderSpec()
+
+
+# =========================================================================
+# DOOR DIMENSIONS (battery + cartridge)
+# =========================================================================
+
+@dataclass(frozen=True)
+class DoorSpec:
+    """Battery door and cartridge door dimensions."""
+
+    # Battery door
+    batt_overlap: float = 2.0          # mm — overlap beyond pocket opening
+    batt_fillet: float = 1.5           # mm — corner radius
+    batt_trap_groove_w: float = 1.0    # mm — light-trap groove width
+    batt_trap_groove_depth: float = 0.8  # mm — light-trap step depth
+    batt_hinge_pin_dia: float = 1.5    # mm
+    batt_hinge_ear_w: float = 4.0      # mm — each ear
+    batt_hinge_ear_h: float = 3.0      # mm — extends from door edge
+    batt_latch_slot_w: float = 10.0    # mm — coin slot width
+    batt_latch_slot_h: float = 2.0     # mm — slot height
+    batt_latch_slot_depth: float = 1.0 # mm
+    batt_contact_dia: float = 5.0      # mm — spring button diameter
+    batt_contact_height: float = 1.0   # mm — protrusion
+
+    # Cartridge door
+    cart_overlap: float = 2.0          # mm — door overlaps body
+    cart_fillet: float = 2.0           # mm — corner radius
+    cart_trap_w: float = 1.0           # mm — light-trap groove width
+    cart_trap_depth: float = 1.5       # mm — step depth
+    cart_trap_rim_h: float = 1.5       # mm — raised rim height on interior
+    cart_hinge_pin_dia: float = 2.0    # mm
+    cart_hinge_knuckle_dia: float = 4.0  # mm — knuckle OD
+    cart_hinge_knuckle_w: float = 5.0  # mm — each knuckle width
+    cart_latch_button_dia: float = 6.0 # mm
+    cart_latch_button_length: float = 4.0  # mm — protrusion when unlatched
+    cart_latch_pocket_depth: float = 8.0   # mm — bore into door edge
+    cart_foam_w: float = 3.0           # mm — foam channel width
+    cart_foam_depth: float = 1.0       # mm — recess depth
+
+
+DOOR_SPEC = DoorSpec()
+
+
+# =========================================================================
+# PRESSURE PLATE
+# =========================================================================
+
+@dataclass(frozen=True)
+class PressurePlateSpec:
+    """Spring-steel pressure plate dimensions and spring parameters."""
+
+    # Plate body
+    plate_w: float = 22.0           # mm — slightly smaller than gate
+    plate_h: float = 18.0           # mm
+    plate_thick: float = 0.3        # mm — thin spring steel
+
+    # Raised contact pads — align with gate's pressure rails
+    pad_w: float = 3.0              # mm — width (X direction)
+    pad_l: float = 12.0             # mm — length (Y direction, along film)
+    pad_h: float = 0.05             # mm — raised above plate surface
+
+    # Aperture window clearance
+    window_clearance: float = 0.5   # mm — each side beyond film frame
+
+    # Leaf spring geometry
+    spring_count: int = 2           # one from top, one from bottom
+    spring_w: float = 4.0           # mm — beam width
+    spring_l: float = 6.0           # mm — free cantilever length
+
+
+PP_SPEC = PressurePlateSpec()
+
+
+# =========================================================================
+# CARTRIDGE RECEIVER
+# =========================================================================
+
+@dataclass(frozen=True)
+class CartridgeReceiverSpec:
+    """Cartridge receiver pocket, registration pins, spindle, and latch."""
+
+    # Pocket dimensions
+    pocket_clearance: float = 0.5     # mm — all-around insertion clearance
+    pocket_wall: float = 2.0          # mm — receiver wall thickness
+
+    # Registration pins (locate cartridge relative to gate)
+    reg_pin_dia: float = 2.0          # mm
+    reg_pin_height: float = 3.0       # mm — protrusion above pocket floor
+    reg_pin_fit: float = 0.01         # mm — H7/h6 alignment fit
+    reg_pin1_offset_x: float = 5.0    # mm — pin 1 offset from exit slot
+    reg_pin1_offset_y: float = 8.0    # mm — pin 1 offset from edge
+    reg_pin2_offset_x: float = 12.0   # mm — pin 2 offset from far side
+    reg_pin2_offset_y: float = 8.0    # mm — pin 2 offset from opposite corner
+
+    # Takeup drive spindle
+    spindle_dia: float = 6.0          # mm — body diameter
+    spindle_tip_dia: float = 4.0      # mm — cross-shaped engagement tip
+    spindle_tip_height: float = 5.0   # mm — engagement depth into cartridge
+    spindle_cross_w: float = 1.5      # mm — width of each cross arm
+    spindle_total_h: float = 10.0     # mm — total spindle length
+
+    # Friction clutch
+    clutch_od: float = 10.0           # mm
+    clutch_thick: float = 1.5         # mm
+    clutch_spring_force: float = 0.5  # N — slip torque ~1.5 mN·m
+
+    # Leaf spring latch
+    latch_w: float = 8.0              # mm — spring width
+    latch_l: float = 15.0             # mm — cantilever length
+    latch_thick: float = 0.5          # mm — spring steel
+    latch_force: float = 1.0          # N — holds cartridge down
+
+
+RECV_SPEC = CartridgeReceiverSpec()
+
+
+# =========================================================================
+# ANALYSIS PARAMETERS — physical constants and thresholds
+# =========================================================================
+
+@dataclass(frozen=True)
+class AnalysisParams:
+    """Physical constants, material properties, and analysis thresholds
+    used by kinematics, thermal, timing, and tolerance stack-up modules."""
+
+    # Film physical properties
+    film_density_g_cm3: float = 1.39      # PET base density
+    mu_film_gate: float = 0.15            # friction coefficient film-on-brass
+
+    # Force limits
+    max_perf_force_n: float = 1.0         # our limit (Kodak allows 1.5 N)
+
+    # Thermal: convection coefficients
+    ambient_temp_c: float = 25.0          # standard room temperature
+    natural_convection_h: float = 10.0    # W/m²·K — still air
+    forced_convection_h: float = 25.0     # W/m²·K — walking / light breeze
+
+    # Thermal: film zone limits
+    film_zone_limit_c: float = 35.0       # emulsion sensitivity drift onset
+    film_absolute_limit_c: float = 50.0   # base softening concern
+
+    # Thermal: motor model
+    motor_thermal_resistance: float = 10.0  # K/W — motor to body
+    gate_thermal_fraction: float = 0.3      # coupling factor (0=body, 1=motor)
+    motor_load_factor: float = 0.15         # light mechanical load fraction
+
+    # Electrical: regulators / PCB
+    logic_voltage_v: float = 3.3
+    logic_current_ma: float = 50.0
+    motor_driver_dropout_v: float = 0.2   # MOSFET Rds_on approximate
+    pcb_misc_power_mw: float = 30.0       # misc PCB components
+
+    # Timing validation thresholds
+    claw_engage_threshold: float = 1.0    # mm — claw x > this = engaged
+    pin_engage_hysteresis: float = 0.1    # mm — pin engages when claw_x < this
+    pin_disengage_hysteresis: float = 0.3 # mm — pin disengages when claw_x > this
+    min_dwell_deg: float = 5.0            # degrees — min film dwell before shutter
+    film_vel_threshold: float = 0.05      # mm/deg — below this = stationary
+    timing_resolution: int = 720          # angular steps for timing analysis
+
+    # Tolerance stack-up parameters
+    bearing_radial_play: float = 0.010    # mm — 694ZZ radial play per bearing
+    disc_flatness: float = 0.02           # mm — precision stamped + ground
+    gate_flatness: float = 0.01           # mm — precision lapped brass
+    bearing_span: float = 10.0            # mm — span between shaft bearings
+    shutter_overhang: float = 5.0         # mm — disc past front bearing
+    design_min_clearance: float = 0.05    # mm — minimum acceptable shutter gap
+
+    # Flange distance acceptance
+    flange_acceptance_tol: float = 0.02   # mm — ±tolerance for C-mount
+
+    # Registration accuracy
+    kodak_registration_spec: float = 0.025  # mm — Kodak ±frame-to-frame spec
+    perf_size_tolerance: float = 0.02     # mm — Kodak film manufacturing tolerance
+    gate_body_alignment: float = 0.008    # mm — dowel pin alignment H6
+    claw_pulldown_accuracy: float = 0.003 # mm — cam profile + guided claw
+    film_stretch_tolerance: float = 0.003 # mm — PET elastic strain at 0.5N
+
+
+ANALYSIS = AnalysisParams()
 
 
 # =========================================================================
@@ -649,27 +1044,28 @@ class ShutterTiming:
         return 1.0 / self.exposure_time(fps)
 
     # Phase boundaries (degrees of shaft rotation)
-    phase1_start: float = 0.0           # shutter open
+    phase1_start: float = 10.0          # shutter open
     phase1_end: float = 180.0           # shutter closes
-    phase2_start: float = 180.0         # claw engage begins
-    phase2_end: float = 230.0           # claw fully engaged
-    phase3_start: float = 230.0         # pulldown begins
-    phase3_end: float = 330.0           # pulldown complete
-    phase4_start: float = 330.0         # claw retract
-    phase4_end: float = 360.0           # cycle complete
+    phase2_start: float = 350.0         # claw engage begins (wraps 0°)
+    phase2_end: float = 5.0             # claw fully engaged
+    phase3_start: float = 190.0         # pulldown begins
+    phase3_end: float = 340.0           # pulldown complete
+    phase4_start: float = 340.0         # claw retract
+    phase4_end: float = 350.0           # retract complete
 
     @property
     def pulldown_arc(self) -> float:
         """Degrees of shaft rotation devoted to pulldown."""
-        return self.phase3_end - self.phase3_start  # 100 deg
+        return self.phase3_end - self.phase3_start  # 150 deg
 
     def pulldown_time(self, fps: int) -> float:
         """Pulldown duration in seconds."""
         return (self.pulldown_arc / 360.0) / fps
 
     def settle_time(self, fps: int) -> float:
-        """Film settling time (phase 4) in seconds."""
-        return ((self.phase4_end - self.phase4_start) / 360.0) / fps
+        """Film settling time (dwell before shutter opens) in seconds."""
+        # Dwell is 5°→10° = 5°
+        return (5.0 / 360.0) / fps
 
 
 SHUTTER = ShutterTiming()

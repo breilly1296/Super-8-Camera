@@ -32,30 +32,30 @@ CLAW_MATERIAL_NAME = "440C Stainless Steel, HRC 58"
 # =========================================================================
 # CLAW ARM DIMENSIONS
 # =========================================================================
-ARM_LENGTH = 15.0           # mm — pivot end to tip end
-ARM_W = 3.0                 # mm — arm width
-ARM_THICK = 1.0             # mm — arm thickness
+ARM_LENGTH = CAMERA.claw_arm_length          # mm — pivot end to tip end
+ARM_W = CAMERA.claw_arm_w                    # mm — arm width
+ARM_THICK = CAMERA.claw_arm_thick            # mm — arm thickness
 
 # Claw tip (the tiny hook that engages the perforation)
-TIP_W = 0.5                 # mm — width (must fit inside perf: 1.143 mm wide)
-TIP_H = 0.3                 # mm — thickness (vertical dimension)
+TIP_W = CAMERA.claw_tip_w                    # mm — width (must fit inside perf: 1.143 mm wide)
+TIP_H = CAMERA.claw_tip_h                    # mm — thickness (vertical dimension)
 TIP_ENGAGE_DEPTH = CAMERA.claw_engage_depth  # 0.5 mm into perforation
-TIP_RADIUS = 0.1            # mm — fillet on tip to avoid tearing film
+TIP_RADIUS = CAMERA.claw_tip_radius          # mm — fillet on tip to avoid tearing film
 
 # Pivot pin at the follower end
-PIVOT_PIN_DIA = 1.5         # mm
-PIVOT_PIN_LENGTH = 5.0      # mm — protrudes through arm + link
+PIVOT_PIN_DIA = CAMERA.claw_pivot_pin_dia    # mm
+PIVOT_PIN_LENGTH = CAMERA.claw_pivot_pin_length  # mm — protrudes through arm + link
 
 # Guide bushings in the arm (ride on the vertical guide pins)
-GUIDE_BUSH_DIA = GUIDE_PIN_DIA + 0.05  # mm — 1.55 mm clearance bore
-GUIDE_BUSH_LENGTH = ARM_THICK           # through arm thickness
+GUIDE_BUSH_DIA = GUIDE_PIN_DIA + 0.03  # mm — 1.53 mm clearance bore (0.03mm per side)
+GUIDE_BUSH_LENGTH = ARM_THICK + 3.0     # mm — extended 3mm for guided claw feature
 
 # Follower pin hole (carries the pin that rides in the cam groove)
 FOLLOWER_HOLE_DIA = FOLLOWER_PIN_DIA + 0.02  # mm — light press fit
 
 # E-clip groove on pivot pin
 ECLIP_GROOVE_DIA = PIVOT_PIN_DIA - 0.3  # mm
-ECLIP_GROOVE_W = 0.4                     # mm
+ECLIP_GROOVE_W = CAMERA.claw_eclip_groove_w  # mm
 
 
 def build() -> cq.Workplane:

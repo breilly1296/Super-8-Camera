@@ -15,51 +15,51 @@ and a placeholder for the microswitch.
 
 import math
 import cadquery as cq
-from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.specs.master_specs import CAMERA, FASTENERS, TRIGGER_SPEC
 
 # =========================================================================
 # LEVER DIMENSIONS
 # =========================================================================
-LEVER_LENGTH = 22.0             # mm — pivot to finger tip
-LEVER_WIDTH = 10.0              # mm — across finger
-LEVER_THICK = 3.0               # mm — lever body thickness
+LEVER_LENGTH = TRIGGER_SPEC.lever_length
+LEVER_WIDTH = TRIGGER_SPEC.lever_width
+LEVER_THICK = TRIGGER_SPEC.lever_thick
 
 # Finger pad
-PAD_L = 12.0                    # mm — along lever
-PAD_W = 8.0                     # mm — across finger
-PAD_DEPTH = 0.8                 # mm — concave depth for ergonomics
-PAD_OFFSET = LEVER_LENGTH / 2.0 - PAD_L / 2.0 + 2.0  # near the free end
+PAD_L = TRIGGER_SPEC.pad_l
+PAD_W = TRIGGER_SPEC.pad_w
+PAD_DEPTH = TRIGGER_SPEC.pad_depth
+PAD_OFFSET = LEVER_LENGTH / 2.0 - PAD_L / 2.0 + 2.0  # keep computed
 
 # Pivot
-PIVOT_PIN_DIA = 2.0             # mm
-PIVOT_BUSHING_OD = 4.0          # mm — boss around pivot
-PIVOT_BOSS_H = LEVER_WIDTH      # mm — full width of lever
-PIVOT_X = -LEVER_LENGTH / 2.0 + 3.0  # near the fixed end
+PIVOT_PIN_DIA = TRIGGER_SPEC.pivot_pin_dia
+PIVOT_BUSHING_OD = TRIGGER_SPEC.pivot_bushing_od
+PIVOT_BOSS_H = LEVER_WIDTH
+PIVOT_X = -LEVER_LENGTH / 2.0 + 3.0  # keep computed
 
-# Internal actuator arm (extends past pivot toward microswitch)
-ARM_LENGTH = 8.0                # mm — from pivot toward switch
-ARM_THICK = 2.0                 # mm
-ARM_X = PIVOT_X - ARM_LENGTH / 2.0 - 1.0
+# Internal actuator arm
+ARM_LENGTH = TRIGGER_SPEC.arm_length
+ARM_THICK = TRIGGER_SPEC.arm_thick
+ARM_X = PIVOT_X - ARM_LENGTH / 2.0 - 1.0  # keep computed
 
 # =========================================================================
-# MICROSWITCH (placeholder)
+# MICROSWITCH
 # =========================================================================
-SWITCH_L = 6.0                  # mm
-SWITCH_W = 3.0                  # mm
-SWITCH_H = 4.0                  # mm
-SWITCH_BUTTON_DIA = 1.0         # mm — actuator button
-SWITCH_BUTTON_H = 1.0           # mm — button protrusion
+SWITCH_L = TRIGGER_SPEC.switch_l
+SWITCH_W = TRIGGER_SPEC.switch_w
+SWITCH_H = TRIGGER_SPEC.switch_h
+SWITCH_BUTTON_DIA = TRIGGER_SPEC.switch_button_dia
+SWITCH_BUTTON_H = TRIGGER_SPEC.switch_button_h
 
 # =========================================================================
 # RETURN SPRING
 # =========================================================================
-SPRING_OD = 3.0                 # mm
-SPRING_FREE_LENGTH = 5.0        # mm
-SPRING_WIRE_DIA = 0.3           # mm
-SPRING_POST_DIA = 1.5           # mm — post that guides the spring
+SPRING_OD = TRIGGER_SPEC.spring_od
+SPRING_FREE_LENGTH = TRIGGER_SPEC.spring_free_length
+SPRING_WIRE_DIA = TRIGGER_SPEC.spring_wire_dia
+SPRING_POST_DIA = TRIGGER_SPEC.spring_post_dia
 
 # Total trigger travel
-TRIGGER_TRAVEL = 2.0            # mm — at the finger pad
+TRIGGER_TRAVEL = TRIGGER_SPEC.travel
 
 # =========================================================================
 # MOUNTING

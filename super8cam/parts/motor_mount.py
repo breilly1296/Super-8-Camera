@@ -3,7 +3,7 @@
 import cadquery as cq
 from super8cam.specs.master_specs import MOTOR, CAMERA, FASTENERS
 
-BRACKET_THICK = 3.0  # mm
+BRACKET_THICK = CAMERA.motor_mount_bracket_thick  # was 3.0
 BRACKET_WIDTH = MOTOR.body_dia + 8.0  # mm — flanges on each side
 
 

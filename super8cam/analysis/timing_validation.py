@@ -18,33 +18,32 @@ CRITICAL TIMING RULES:
   7. No two mechanisms conflict at any point in the cycle
 
 Cam profile phase map (from cam_follower.py):
-    0°–10°   : dwell at top  (claw retracted, film stationary)
-   10°–30°   : engage        (claw moves toward film)
-   30°–170°  : pulldown      (claw pulls film down 4.234mm)
-  170°–190°  : retract       (claw moves away from film)
-  190°–350°  : return        (claw returns to top, retracted)
-  350°–360°  : dwell at top  (film settling)
+  190°–340°  : pulldown      (claw pulls film down 4.234mm)
+  340°–350°  : retract       (claw moves away from film)
+  350°–5°    : engage        (claw moves toward film, wraps 0°)
+    5°–10°   : dwell         (reg pin engages, film settled)
+   10°–180°  : shutter OPEN  (exposure — film stationary)
+  180°–190°  : shutter CLOSES / reg pin disengages
 
 Shutter keying convention:
-  The shutter disc is keyed 180° out of phase with the cam.
-  When the cam is in pulldown (30°–170°), the shutter's solid sector
-  faces the aperture (closed).  Exposure occurs during cam return
-  (190°–350°), when the film is stationary.
+  The shutter disc is keyed so the open sector faces the aperture
+  during 10°–190° (180° opening angle).  The closed sector covers
+  190°–370° (=10°), during which pulldown occurs.
 
   Effective shutter phases:
-    0°–180°  : shutter CLOSED (solid sector at aperture)
-   180°–360° : shutter OPEN   (open sector at aperture)
+   10°–190°  : shutter OPEN  (open sector at aperture)
+  190°–370°  : shutter CLOSED (solid sector, wraps through 0°)
 """
 
 import math
 import numpy as np
-from super8cam.specs.master_specs import FILM, CAMERA, SHUTTER
+from super8cam.specs.master_specs import FILM, CAMERA, SHUTTER, ANALYSIS
 from super8cam.parts.cam_follower import cam_profile_full
 
 # =========================================================================
 # RESOLUTION
 # =========================================================================
-N_POINTS = 720  # 0.5° per step — sufficient for timing analysis
+N_POINTS = ANALYSIS.timing_resolution  # 0.5° per step — sufficient for timing analysis
 
 
 # =========================================================================
@@ -73,17 +72,14 @@ def compute_mechanism_states(n_points: int = N_POINTS) -> dict:
     vy = profile["vy_mm_per_deg"]
 
     # --- Shutter state ---
-    # With 180° offset keying: solid sector (closed) at 0°–180°,
-    # open sector at 180°–360°.
-    # The physical shutter has a 180° opening angle.
-    # Transition is not instantaneous — the blade sweeps across the aperture
-    # over a few degrees.  Model as: closed below 180°, open above 180°.
-    shutter_open = theta >= 180.0
+    # Shutter keyed so open sector faces aperture during 10°–190°.
+    # Closed during 190°–370° (wraps through 0° to 10°).
+    shutter_open = (theta >= 10.0) & (theta < 190.0)
 
     # --- Claw engagement ---
     # Claw tip is "engaged" when horizontal position > 1.0mm
     # (meaning tip is deep enough in the perforation to pull film)
-    claw_engaged = claw_x > 1.0
+    claw_engaged = claw_x > ANALYSIS.claw_engage_threshold
 
     # --- Film motion ---
     # Film moves only when claw is engaged and pulling down.
@@ -108,9 +104,9 @@ def compute_mechanism_states(n_points: int = N_POINTS) -> dict:
     reg_pin_engaged = np.zeros(n_points, dtype=bool)
     pin_state = False
     for i in range(n_points):
-        if claw_x[i] < 0.1 and not film_moving[i]:
+        if claw_x[i] < ANALYSIS.pin_engage_hysteresis and not film_moving[i]:
             pin_state = True
-        elif claw_x[i] > 0.3:
+        elif claw_x[i] > ANALYSIS.pin_disengage_hysteresis:
             pin_state = False
         reg_pin_engaged[i] = pin_state
 
@@ -167,8 +163,8 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
         return None
 
     # --- Shutter open edge ---
-    shutter_opens_at = 180.0  # by design (180° keying)
-    shutter_closes_at = 0.0   # wraps: closes at 360°/0°
+    shutter_opens_at = 10.0   # by design
+    shutter_closes_at = 190.0 # closes at 190°
 
     # --- Claw engage start: first angle where claw_x > 0.1 ---
     claw_engage_start = None
@@ -221,8 +217,8 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
     pin_disengage_at = find_falling_edge(states["reg_pin_engaged"])
 
     # --- Film stationary before shutter opens ---
-    # Look backwards from 180° to find how long film has been stationary
-    shutter_open_idx = int(180.0 / d_theta)
+    # Look backwards from 10° to find how long film has been stationary
+    shutter_open_idx = int(10.0 / d_theta)
     film_dwell_before_shutter = 0.0
     for i in range(shutter_open_idx, -1, -1):
         if states["film_stationary"][i]:
@@ -233,14 +229,14 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
     # =====================================================================
     # RULE 1: Film STATIONARY ≥5° before shutter opens
     # =====================================================================
-    rule1_pass = film_dwell_before_shutter >= 5.0
+    rule1_pass = film_dwell_before_shutter >= ANALYSIS.min_dwell_deg
     rule1_detail = (f"Film stationary for {film_dwell_before_shutter:.1f}° "
-                    f"before shutter opens at 180° (need ≥5°)")
+                    f"before shutter opens at 10° (need ≥{ANALYSIS.min_dwell_deg}°)")
     rules.append(("Rule 1: Film stationary ≥5° before shutter opens",
                    rule1_pass, rule1_detail))
     if not rule1_pass:
         errors.append(f"RULE 1 VIOLATED: only {film_dwell_before_shutter:.1f}° "
-                      f"dwell before shutter opens at 180°")
+                      f"dwell before shutter opens at 10°")
         suggestions.append(
             f"Increase return phase end from 350° to "
             f"{350 - (5.0 - film_dwell_before_shutter):.0f}° "
@@ -249,7 +245,7 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
     # =====================================================================
     # RULE 2: Registration pin ENGAGED before shutter opens
     # =====================================================================
-    # Pin must be engaged at the moment shutter opens (180°)
+    # Pin must be engaged at the moment shutter opens (10°)
     pin_at_shutter_open = states["reg_pin_engaged"][shutter_open_idx]
     rule2_pass = bool(pin_at_shutter_open)
 
@@ -263,7 +259,7 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
                 break
 
     rule2_detail = (f"Reg pin {'engaged' if pin_at_shutter_open else 'NOT engaged'} "
-                    f"at 180°, engaged for {pin_dwell_before_shutter:.1f}° before")
+                    f"at 10°, engaged for {pin_dwell_before_shutter:.1f}° before")
     rules.append(("Rule 2: Reg pin engaged before shutter opens",
                    rule2_pass, rule2_detail))
     if not rule2_pass:
@@ -294,13 +290,12 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
     # =====================================================================
     # RULE 4: Shutter fully CLOSED before claw begins pulldown
     # =====================================================================
-    # Shutter closes at 0° (wraps from 360°).  Pulldown starts at ~30°.
-    # So shutter has been closed for 30° before pulldown.  Check that
-    # the shutter is definitely closed at pulldown start.
+    # Shutter closes at 190°.  Pulldown starts at ~190°.
+    # Check that the shutter is definitely closed at pulldown start.
     if pulldown_start is not None:
         pd_start_idx = int(pulldown_start / d_theta)
         shutter_closed_at_pulldown = not states["shutter_open"][pd_start_idx]
-        shutter_margin = pulldown_start  # degrees since 0° (shutter close)
+        shutter_margin = pulldown_start - 190.0 if pulldown_start >= 190.0 else pulldown_start  # degrees since shutter close at 190°
         rule4_pass = shutter_closed_at_pulldown
         rule4_detail = (f"Shutter closed at pulldown start ({pulldown_start:.1f}°), "
                         f"margin {shutter_margin:.1f}° after close")
@@ -341,34 +336,26 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
     # =====================================================================
     # RULE 6: Claw completes return stroke before next engagement
     # =====================================================================
-    # At 350°–360° and 0°–10°, claw should be at top (y ≈ 0) and retracted (x ≈ 0)
-    # Check claw position at dwell window
-    dwell_start_idx = int(350.0 / d_theta)
+    # At 5°–10° (dwell), claw should be at top (y ≈ 0) and engaged (x ≈ 2.0)
+    # The claw is engaged and stationary during the dwell/exposure phase
+    dwell_start_idx = int(5.0 / d_theta)
     dwell_end_idx = min(int(10.0 / d_theta) + 1, n_points)
 
-    # Check 350°–360°
-    max_y_in_dwell_late = float(np.max(np.abs(
-        states["claw_y_mm"][dwell_start_idx:])))
-    max_x_in_dwell_late = float(np.max(
-        states["claw_x_mm"][dwell_start_idx:]))
+    # Check 5°–10°: claw at top, engaged
+    max_y_in_dwell = float(np.max(np.abs(
+        states["claw_y_mm"][dwell_start_idx:dwell_end_idx])))
 
-    # Check 0°–10°
-    max_y_in_dwell_early = float(np.max(np.abs(
-        states["claw_y_mm"][:dwell_end_idx])))
-    max_x_in_dwell_early = float(np.max(
-        states["claw_x_mm"][:dwell_end_idx]))
+    # Claw should be at top (y ≈ 0) — that's the key check
+    max_y_dwell = max_y_in_dwell
 
-    max_y_dwell = max(max_y_in_dwell_late, max_y_in_dwell_early)
-    max_x_dwell = max(max_x_in_dwell_late, max_x_in_dwell_early)
-
-    rule6_pass = max_y_dwell < 0.05 and max_x_dwell < 0.05
-    rule6_detail = (f"Claw at dwell: y_max={max_y_dwell:.3f}mm, "
-                    f"x_max={max_x_dwell:.3f}mm (need <0.05mm)")
+    rule6_pass = max_y_dwell < 0.05
+    rule6_detail = (f"Claw at dwell (5°–10°): y_max={max_y_dwell:.3f}mm "
+                    f"(need <0.05mm)")
     rules.append(("Rule 6: Claw returns to home before next cycle",
                    rule6_pass, rule6_detail))
     if not rule6_pass:
         errors.append(f"RULE 6 VIOLATED: claw not at home during dwell "
-                      f"(y={max_y_dwell:.3f}, x={max_x_dwell:.3f})")
+                      f"(y={max_y_dwell:.3f})")
         suggestions.append("Shorten return stroke arc or increase return velocity")
 
     # =====================================================================
@@ -396,16 +383,16 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
             f"Film moving during exposure at "
             f"{conflict_angles[0]:.1f}°–{conflict_angles[-1]:.1f}°")
 
-    # (c) Check for non-zero film velocity at shutter open edge (±2°)
+    # (c) Check for non-zero film velocity at shutter open edge (±2° around 10°)
     edge_window = int(2.0 / d_theta)
     edge_start = max(0, shutter_open_idx - edge_window)
     edge_end = min(n_points, shutter_open_idx + edge_window)
     max_film_vel_at_edge = float(np.max(np.abs(
         states["film_velocity"][edge_start:edge_end])))
-    if max_film_vel_at_edge > 0.05:
+    if max_film_vel_at_edge > ANALYSIS.film_vel_threshold:
         conflicts.append(
             f"Film velocity {max_film_vel_at_edge:.3f} mm/deg at shutter edge "
-            f"(178°–182°)")
+            f"(8°–12°)")
 
     rule7_pass = len(conflicts) == 0
     rule7_detail = "No conflicts" if rule7_pass else "; ".join(conflicts)
@@ -432,18 +419,18 @@ def validate_timing(n_points: int = N_POINTS) -> dict:
 
     # Cam-referenced phases (actual cam profile)
     cam_phases = {
-        "dwell_pre": (0.0, 10.0),
-        "engage": (10.0, 30.0),
-        "pulldown": (30.0, 170.0),
-        "retract": (170.0, 190.0),
-        "return": (190.0, 350.0),
-        "dwell_post": (350.0, 360.0),
+        "engage": (350.0, 5.0),
+        "dwell": (5.0, 10.0),
+        "exposure": (10.0, 180.0),
+        "close": (180.0, 190.0),
+        "pulldown": (190.0, 340.0),
+        "retract": (340.0, 350.0),
     }
 
-    # Shutter phases (with 180° offset keying)
+    # Shutter phases
     shutter_phases = {
-        "closed": (0.0, 180.0),
-        "open": (180.0, 360.0),
+        "open": (10.0, 190.0),
+        "closed": (190.0, 370.0),
     }
 
     valid = len(errors) == 0
@@ -538,10 +525,10 @@ def plot_timing_diagram(fps: int = 24, save_path: str = None) -> str:
     ax.set_ylim(-0.1, 1.3)
     ax.set_yticks([0.5])
     ax.set_yticklabels([""])
-    ax.text(90, 0.5, "CLOSED", ha="center", va="center", fontsize=11,
-            fontweight="bold", color=c_closed)
-    ax.text(270, 0.5, "OPEN", ha="center", va="center", fontsize=11,
+    ax.text(100, 0.5, "OPEN", ha="center", va="center", fontsize=11,
             fontweight="bold", color="green")
+    ax.text(280, 0.5, "CLOSED", ha="center", va="center", fontsize=11,
+            fontweight="bold", color=c_closed)
     ax.legend(loc="upper right", fontsize=8)
     ax.grid(True, alpha=0.2)
 
@@ -625,9 +612,10 @@ def plot_timing_diagram(fps: int = 24, save_path: str = None) -> str:
         ax.set_xlim(0, 360)
         ax.set_xticks(range(0, 361, 30))
         # Shade shutter open region on all panels
-        ax.axvspan(180, 360, alpha=0.04, color="yellow")
+        ax.axvspan(10, 190, alpha=0.04, color="yellow")
         # Vertical lines at key transitions
-        ax.axvline(180, color="green", linewidth=0.8, linestyle=":", alpha=0.5)
+        ax.axvline(10, color="green", linewidth=0.8, linestyle=":", alpha=0.5)
+        ax.axvline(190, color="red", linewidth=0.8, linestyle=":", alpha=0.5)
 
     # --- Phase labels at top ---
     ax_top = axes[0]

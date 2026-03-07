@@ -24,7 +24,7 @@ MATERIAL = MATERIALS[MATERIAL_USAGE["shutter_disc"]]
 # =========================================================================
 # DIMENSIONS
 # =========================================================================
-DISC_OD = 28.0              # mm — outer diameter
+DISC_OD = CAMERA.shutter_od                   # mm — outer diameter
 DISC_THICK = CAMERA.shutter_thickness  # 0.8 mm
 OPENING_ANGLE = CAMERA.shutter_opening_angle  # 180°
 
@@ -34,8 +34,8 @@ KEYWAY_W = CAMERA.shutter_keyway_w     # 1.0 mm
 KEYWAY_DEPTH = CAMERA.shutter_keyway_depth  # 0.5 mm
 
 # Encoder flag notch (on outer rim of solid sector)
-FLAG_W = 2.0                # mm — circumferential width of notch
-FLAG_DEPTH = 1.0            # mm — radial depth from rim inward
+FLAG_W = CAMERA.shutter_flag_w                 # mm — circumferential width of notch
+FLAG_DEPTH = CAMERA.shutter_flag_depth         # mm — radial depth from rim inward
 
 # Gate clearance
 GATE_CLEARANCE = CAMERA.shutter_to_gate_clearance  # 0.3 mm
@@ -45,7 +45,7 @@ DENSITY = MATERIAL.density  # 2.70 g/cm³
 BRASS_DENSITY = MATERIALS["brass_c360"].density  # 8.49 g/cm³
 
 # Balance target
-MAX_IMBALANCE_GMM = 0.1    # g·mm — static imbalance limit
+MAX_IMBALANCE_GMM = CAMERA.shutter_max_imbalance_gmm  # g·mm — static imbalance limit
 
 
 # =========================================================================

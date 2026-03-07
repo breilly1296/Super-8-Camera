@@ -19,28 +19,29 @@ At typical shooting distances (>1m) this is negligible.
 
 import math
 import cadquery as cq
-from super8cam.specs.master_specs import FILM, CAMERA, FASTENERS
+from super8cam.specs.master_specs import FILM, CAMERA, FASTENERS, VF_SPEC
+from super8cam.parts.interfaces import make_dovetail_slider
 
 # =========================================================================
 # TUBE DIMENSIONS
 # =========================================================================
-TUBE_W = 10.0               # mm — width (horizontal)
-TUBE_H = 8.0                # mm — height (vertical)
-TUBE_LENGTH = 40.0          # mm — front to rear
-TUBE_WALL = 1.0             # mm — wall thickness
+TUBE_W = VF_SPEC.tube_w                # mm — width (horizontal)
+TUBE_H = VF_SPEC.tube_h                # mm — height (vertical)
+TUBE_LENGTH = VF_SPEC.tube_length      # mm — front to rear
+TUBE_WALL = VF_SPEC.tube_wall          # mm — wall thickness
 
 # =========================================================================
 # OPTICAL ELEMENTS (modeled as discs for CadQuery)
 # =========================================================================
-LENS_DIA = 8.0              # mm — both elements
-LENS_THICK = 1.5            # mm — disc thickness for modeling
+LENS_DIA = VF_SPEC.lens_dia            # mm — both elements
+LENS_THICK = VF_SPEC.lens_thick        # mm — disc thickness for modeling
 
-FRONT_FOCAL_LENGTH = -20.0  # mm — plano-concave (diverging)
-REAR_FOCAL_LENGTH = 30.0    # mm — plano-convex (eyepiece)
+FRONT_FOCAL_LENGTH = VF_SPEC.front_focal_length  # mm — plano-concave (diverging)
+REAR_FOCAL_LENGTH = VF_SPEC.rear_focal_length    # mm — plano-convex (eyepiece)
 
 # Element positions (from rear of tube, eye end)
-REAR_ELEMENT_Z = 2.0                    # mm from eye end
-FRONT_ELEMENT_Z = TUBE_LENGTH - 2.0     # mm from eye end
+REAR_ELEMENT_Z = VF_SPEC.rear_element_z                 # mm from eye end
+FRONT_ELEMENT_Z = TUBE_LENGTH - VF_SPEC.rear_element_z  # mm from eye end
 
 # =========================================================================
 # BRIGHT-LINE FRAME
@@ -51,7 +52,7 @@ FRAME_ASPECT = FILM.frame_w / FILM.frame_h  # ~1.443
 # Scale to fit within the tube bore
 FRAME_H = TUBE_H - 2 * TUBE_WALL - 1.0     # mm — visible height (5.0mm)
 FRAME_W = FRAME_H * FRAME_ASPECT            # mm — visible width (~7.2mm)
-FRAME_WIRE_DIA = 0.3                         # mm — wire thickness
+FRAME_WIRE_DIA = VF_SPEC.frame_wire_dia      # mm — wire thickness
 # Position: roughly at the focal plane of the eyepiece
 # For a Galilean telescope the virtual focal plane is in front of the eye lens
 # We place the bright-line frame at ~60% of tube length from the rear
@@ -60,15 +61,15 @@ FRAME_Z = TUBE_LENGTH * 0.6                 # mm from eye end
 # =========================================================================
 # MOUNTING TABS
 # =========================================================================
-TAB_W = 6.0                 # mm — each tab width
-TAB_H = 5.0                 # mm — extends below tube
-TAB_THICK = 2.0             # mm — thickness along optical axis
-TAB_SPACING = 30.0          # mm — center-to-center along tube length
+TAB_W = VF_SPEC.tab_w                  # mm — each tab width
+TAB_H = VF_SPEC.tab_h                  # mm — extends below tube
+TAB_THICK = VF_SPEC.tab_thick          # mm — thickness along optical axis
+TAB_SPACING = VF_SPEC.tab_spacing      # mm — center-to-center along tube length
 M2_CLEARANCE = FASTENERS["M2x5_shcs"].clearance_hole  # 2.2mm
 
 # Viewfinder offset from taking lens
-VF_OFFSET_UP = 20.0         # mm — above optical axis
-VF_OFFSET_LEFT = 5.0        # mm — to the left
+VF_OFFSET_UP = VF_SPEC.offset_up       # mm — above optical axis
+VF_OFFSET_LEFT = VF_SPEC.offset_left   # mm — to the left
 
 
 def build_tube() -> cq.Workplane:
@@ -116,7 +117,7 @@ def build_front_element() -> cq.Workplane:
     # Concave surface approximation: shallow spherical cup on front face
     # Radius of curvature for plano-concave: R = (n-1) × f = ~0.5 × 20 = 10mm
     # We just model the concavity as a shallow pocket
-    sag = 0.4  # mm — approximate sag of the concave surface
+    sag = VF_SPEC.front_sag  # mm — approximate sag of the concave surface
     lens = (
         lens.faces(">Z").workplane()
         .circle(LENS_DIA / 2.0 - 0.2)
@@ -156,34 +157,21 @@ def build_bright_line_frame() -> cq.Workplane:
 
 
 def build_mounting_tabs() -> cq.Workplane:
-    """Build two mounting tabs with M2 holes."""
-    tabs = cq.Workplane("XY").box(0.01, 0.01, 0.01)  # seed
+    """Build dovetail slider base for mounting to top plate rail.
 
-    tab_z_positions = [
-        TUBE_LENGTH / 2.0 - TAB_SPACING / 2.0,
-        TUBE_LENGTH / 2.0 + TAB_SPACING / 2.0,
-    ]
+    Replaces the previous screw-hole tabs with a 35mm dovetail slider
+    (1 thumbscrew) that mates with the top plate's dovetail rail.
+    Slider is positioned below the tube (-Y direction), centered
+    along Z (optical axis).
+    """
+    SLIDER_LENGTH = 35.0  # mm — slightly shorter than rail for slide clearance
 
-    for tz in tab_z_positions:
-        tab = (
-            cq.Workplane("XZ")
-            .rect(TAB_W, TAB_THICK)
-            .extrude(-TAB_H)
-            .translate((0, -TUBE_H / 2.0, tz))
-        )
-        tabs = tabs.union(tab)
-
-    # M2 mounting holes through tabs (vertical, Y direction)
-    for tz in tab_z_positions:
-        hole = (
-            cq.Workplane("XZ")
-            .transformed(offset=(0, tz, -TUBE_H / 2.0 - TAB_H / 2.0))
-            .circle(M2_CLEARANCE / 2.0)
-            .extrude(TAB_H + TUBE_WALL)
-        )
-        tabs = tabs.cut(hole)
-
-    return tabs
+    slider = (
+        make_dovetail_slider(SLIDER_LENGTH, num_thumbscrews=1)
+        .rotate((0, 0, 0), (1, 0, 0), 90)   # orient slider along Z (optical axis)
+        .translate((0, -TUBE_H / 2.0, TUBE_LENGTH / 2.0))
+    )
+    return slider
 
 
 def build() -> cq.Workplane:
@@ -237,8 +225,8 @@ def get_viewfinder_geometry() -> dict:
         "tube_h": TUBE_H,
         "tube_length": TUBE_LENGTH,
         "lens_dia": LENS_DIA,
-        "fov_horizontal_deg": 42.0,
-        "magnification": 0.5,
+        "fov_horizontal_deg": VF_SPEC.fov_horizontal_deg,
+        "magnification": VF_SPEC.magnification,
         "offset_up": VF_OFFSET_UP,
         "offset_left": VF_OFFSET_LEFT,
         "tab_spacing": TAB_SPACING,

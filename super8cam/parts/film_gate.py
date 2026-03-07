@@ -15,45 +15,43 @@ from super8cam.specs.master_specs import (
 
 MATERIAL = MATERIALS[MATERIAL_USAGE["film_gate"]]
 
-# Gate body dimensions (from user spec, override CAMERA defaults)
-GATE_W = 24.0           # mm — overall width
-GATE_H = 20.0           # mm — overall height (film travel direction)
-GATE_THICK = 4.0        # mm — overall thickness
+# Gate body dimensions (from CAMERA spec)
+GATE_W = CAMERA.gate_plate_w            # 24.0 mm
+GATE_H = CAMERA.gate_plate_h            # 20.0 mm
+GATE_THICK = CAMERA.gate_plate_thick    # 4.0 mm
 
 # Film channel on rear face (film side)
-CHANNEL_W = 8.2         # mm — film 8.0 + 0.1 clearance each side
-CHANNEL_DEPTH = 0.20    # mm — film rides in this recess
+CHANNEL_W = CAMERA.gate_channel_w       # 8.2 mm
+CHANNEL_DEPTH = CAMERA.gate_channel_depth  # 0.20 mm
 
 # Pressure plate contact rails
-RAIL_W = 1.5            # mm — width of each polished rail
-RAIL_H = 0.15           # mm — raised above channel floor
-# Rails sit on each side of aperture, inside the channel
+RAIL_W = CAMERA.gate_rail_w             # 1.5 mm
+RAIL_H = CAMERA.gate_rail_h             # 0.15 mm
 
 # Aperture taper (lens side is wider for wide-angle clearance)
-APERTURE_TAPER = 0.2    # mm — total widening on lens side
-APERTURE_CHAMFER = 0.05 # mm — lens-side chamfer for clean light entry
+APERTURE_TAPER = CAMERA.gate_aperture_taper    # 0.2 mm
+APERTURE_CHAMFER = CAMERA.gate_aperture_chamfer  # 0.05 mm
 
-# Perforation clearance slot (claw access from behind)
-PERF_SLOT_W = 1.5       # mm — width of perf clearance channel
-# Located camera-left of film channel, where perfs run
+# Perforation clearance slot
+PERF_SLOT_W = CAMERA.gate_perf_slot_w   # 1.5 mm
 
-# Claw access slot (behind perforation area)
-CLAW_SLOT_W = 2.0       # mm
-CLAW_SLOT_H = 8.0       # mm — vertical extent
+# Claw access slot
+CLAW_SLOT_W = CAMERA.gate_claw_slot_w   # 2.0 mm
+CLAW_SLOT_H = CAMERA.gate_claw_slot_h   # 8.0 mm
 
 # Registration pin hole
-REG_PIN_HOLE_DIA = 0.82 # mm — H7 tolerance for 0.813mm pin press-fit
-REG_PIN_PROTRUSION = 0.5  # mm — into film channel
+REG_PIN_HOLE_DIA = CAMERA.gate_reg_pin_hole_dia    # 0.82 mm
+REG_PIN_PROTRUSION = CAMERA.gate_reg_pin_protrusion  # 0.5 mm
 
-# Mounting: 4× M2 on 20mm × 16mm bolt pattern
-MOUNT_PATTERN_X = 20.0  # mm — horizontal span
-MOUNT_PATTERN_Y = 16.0  # mm — vertical span
-M2_TAP_DIA = FASTENERS["M2x5_shcs"].tap_hole      # 1.6mm
-M2_THREAD_DEPTH = 3.0   # mm
+# Mounting: 4× M2 on bolt pattern
+MOUNT_PATTERN_X = CAMERA.gate_mount_pattern_x   # 20.0 mm
+MOUNT_PATTERN_Y = CAMERA.gate_mount_pattern_y   # 16.0 mm
+M2_TAP_DIA = FASTENERS["M2x5_shcs"].tap_hole
+M2_THREAD_DEPTH = CAMERA.gate_m2_thread_depth   # 3.0 mm
 
-# Dowel pins: 2mm H7, positioned diagonally
-DOWEL_DIA = 2.0         # mm
-DOWEL_DEPTH = 3.0       # mm
+# Dowel pins
+DOWEL_DIA = CAMERA.gate_dowel_dia       # 2.0 mm
+DOWEL_DEPTH = CAMERA.gate_dowel_depth   # 3.0 mm
 
 
 def build() -> cq.Workplane:

@@ -9,6 +9,7 @@ Features:
 
 import cadquery as cq
 from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.parts.interfaces import make_snap_pocket
 
 # =========================================================================
 # PLATE DIMENSIONS
@@ -117,6 +118,17 @@ def build() -> cq.Workplane:
     )
     ledge = outer_ledge.cut(inner_ledge)
     plate = plate.cut(ledge)
+
+    # --- 2× Snap pockets around battery door opening ---
+    # Receive battery door snap latches at ±BATT_DOOR_L/4.0
+    for sign in [-1, 1]:
+        pocket = (
+            make_snap_pocket()
+            .translate((BATT_X + sign * BATT_DOOR_L / 4.0,
+                        BATT_Y - BATT_DOOR_W / 2.0,
+                        PLATE_THICK / 2.0))
+        )
+        plate = plate.cut(pocket)
 
     # --- Plate mounting holes (4× M2.5 clearance + counterbores) ---
     plate = (

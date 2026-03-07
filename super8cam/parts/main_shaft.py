@@ -25,7 +25,7 @@ Shaft layout (Z axis, rear=−Z to front=+Z):
 import math
 import cadquery as cq
 from super8cam.specs.master_specs import (
-    CAMERA, MATERIALS, MATERIAL_USAGE, BEARINGS,
+    CAMERA, MATERIALS, MATERIAL_USAGE, BEARINGS, SHAFT_DIMS,
 )
 
 MATERIAL = MATERIALS[MATERIAL_USAGE["main_shaft"]]
@@ -35,39 +35,39 @@ MATERIAL = MATERIALS[MATERIAL_USAGE["main_shaft"]]
 # =========================================================================
 
 # Section 1: Gear end (rear)
-SEC1_DIA = 3.0           # mm — reduced diameter for gear bore
-SEC1_LEN = 8.0           # mm
-SEC1_KEYWAY_W = 0.6      # mm — gear drive keyway width
-SEC1_KEYWAY_DEPTH = 0.3  # mm
+SEC1_DIA = SHAFT_DIMS.sec1_dia          # 3.0 mm
+SEC1_LEN = SHAFT_DIMS.sec1_len          # 8.0 mm
+SEC1_KEYWAY_W = SHAFT_DIMS.sec1_keyway_w     # 0.6 mm
+SEC1_KEYWAY_DEPTH = SHAFT_DIMS.sec1_keyway_depth  # 0.3 mm
 
 # Section 2: Bearing seat 1
-SEC2_DIA = CAMERA.shaft_dia  # 4.0 mm
-SEC2_LEN = BEARINGS["main_shaft"].width  # 4.0 mm (match bearing width)
+SEC2_DIA = CAMERA.shaft_dia             # 4.0 mm (already uses CAMERA)
+SEC2_LEN = BEARINGS["main_shaft"].width  # 4.0 mm (already uses BEARINGS)
 
 # Section 3: Cam section
-SEC3_DIA = CAMERA.shaft_dia  # 4.0 mm
-SEC3_LEN = 6.0           # mm — room for pulldown cam + secondary eccentric
-SEC3_KEYWAY_W = 1.0      # mm — cam drive keyway
-SEC3_KEYWAY_DEPTH = 0.5  # mm
+SEC3_DIA = CAMERA.shaft_dia
+SEC3_LEN = SHAFT_DIMS.sec3_len          # 6.0 mm
+SEC3_KEYWAY_W = SHAFT_DIMS.sec3_keyway_w     # 1.0 mm
+SEC3_KEYWAY_DEPTH = SHAFT_DIMS.sec3_keyway_depth  # 0.5 mm
 
 # Section 4: Bearing seat 2
-SEC4_DIA = CAMERA.shaft_dia  # 4.0 mm
-SEC4_LEN = BEARINGS["main_shaft"].width  # 4.0 mm
+SEC4_DIA = CAMERA.shaft_dia
+SEC4_LEN = BEARINGS["main_shaft"].width
 
 # Section 5: Shutter section
-SEC5_DIA = CAMERA.shaft_dia  # 4.0 mm
-SEC5_LEN = 3.0           # mm
-SEC5_KEYWAY_W = CAMERA.shutter_keyway_w  # 1.0 mm
-SEC5_KEYWAY_DEPTH = CAMERA.shutter_keyway_depth  # 0.5 mm
+SEC5_DIA = CAMERA.shaft_dia
+SEC5_LEN = SHAFT_DIMS.sec5_len          # 3.0 mm
+SEC5_KEYWAY_W = CAMERA.shutter_keyway_w      # 1.0 mm (already uses CAMERA)
+SEC5_KEYWAY_DEPTH = CAMERA.shutter_keyway_depth  # 0.5 mm (already uses CAMERA)
 
 # Section 6: Encoder end (front)
-SEC6_DIA = 3.0           # mm — reduced for encoder disc
-SEC6_LEN = 4.0           # mm
-SEC6_THREAD_DIA = 3.0    # mm — M3 external thread
-SEC6_THREAD_LEN = 3.0    # mm — threaded length at tip
+SEC6_DIA = SHAFT_DIMS.sec6_dia          # 3.0 mm
+SEC6_LEN = SHAFT_DIMS.sec6_len          # 4.0 mm
+SEC6_THREAD_DIA = SHAFT_DIMS.sec6_thread_dia  # 3.0 mm
+SEC6_THREAD_LEN = SHAFT_DIMS.sec6_thread_len  # 3.0 mm
 
 # Transitions
-CHAMFER = 0.3            # mm — 45° chamfer at all diameter transitions
+CHAMFER = SHAFT_DIMS.chamfer            # 0.3 mm
 
 # Total length
 SHAFT_LENGTH = SEC1_LEN + SEC2_LEN + SEC3_LEN + SEC4_LEN + SEC5_LEN + SEC6_LEN
