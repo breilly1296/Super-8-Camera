@@ -191,16 +191,6 @@ def build() -> cq.Workplane:
     )
     shell = shell.cut(motor_pocket)
 
-    # --- PCB board clearance pocket ---
-    # Cut extra clearance around the PCB board area (+6mm per axis)
-    pcb_board_z = -BODY_H / 2.0 + WALL + PCB_STANDOFF_H + PCB.thickness / 2.0
-    pcb_pocket = (
-        cq.Workplane("XY")
-        .box(PCB.width + 6, PCB.height + 6, PCB.thickness + 6)
-        .translate((PCB_X, 0, pcb_board_z))
-    )
-    shell = shell.cut(pcb_pocket)
-
     # --- PCB standoffs (4× M2, 6mm tall) ---
     m2 = FASTENERS["M2x8_shcs"]
     pcb_positions = [
@@ -304,6 +294,15 @@ def build() -> cq.Workplane:
                 .translate((sx, sy, BODY_H / 2.0 - WALL))
             )
             shell = shell.cut(pocket)
+
+    # --- PCB board clearance pocket (cut LAST to override screw bosses) ---
+    pcb_board_z = -BODY_H / 2.0 + WALL + PCB_STANDOFF_H + PCB.thickness / 2.0
+    pcb_pocket = (
+        cq.Workplane("XY")
+        .box(PCB.width + 6, PCB.height + 6, PCB.thickness + 10)
+        .translate((PCB_X, 0, pcb_board_z + 2.0))
+    )
+    shell = shell.cut(pcb_pocket)
 
     return shell
 

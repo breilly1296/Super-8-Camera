@@ -101,7 +101,7 @@ GEARBOX_Y = SHAFT_Y + 12.0    # shifted back 2mm for housing clearance
 GEARBOX_Z = SHAFT_Z - 18.0    # lowered 3mm to clear body cavity
 
 # Motor: attached to gearbox housing
-MOTOR_X = GEARBOX_X
+MOTOR_X = GEARBOX_X + 6.0  # shifted right 6mm to clear body_left bearing boss (extends to X=5.5)
 MOTOR_Y = GEARBOX_Y + MOTOR.body_length / 2.0  # flush with gearbox (shifted 3mm inward)
 MOTOR_Z = GEARBOX_Z
 
@@ -149,16 +149,19 @@ def build() -> cq.Assembly:
     assy = cq.Assembly(name="super8_camera")
 
     # --- Step 1: Left body half (chassis) ---
+    # body_left.build() already places geometry at X=[-HALF_L, 0], no offset needed
     assy.add(body_left.build(), name="body_left",
-             loc=cq.Location((-CAMERA.body_length / 4, 0, 0)))
+             loc=cq.Location((0, 0, 0)))
 
     # --- Step 2: Main shaft + bearings ---
     assy.add(main_shaft.build(), name="main_shaft",
              loc=cq.Location((SHAFT_X, SHAFT_Y, SHAFT_Z)))
 
     # --- Step 3: Gearbox housing + gears ---
+    # Center housing on gear train midpoint (gears span from X=0 to s1_cd+s2_cd)
+    gear_train_cx = (GEARBOX.stage1_center_distance + GEARBOX.stage2_center_distance) / 2.0
     assy.add(gearbox_housing.build(), name="gearbox_housing",
-             loc=cq.Location((GEARBOX_X, GEARBOX_Y, GEARBOX_Z)))
+             loc=cq.Location((GEARBOX_X + gear_train_cx, GEARBOX_Y, GEARBOX_Z)))
 
     # Stage 1 pinion (on motor shaft)
     assy.add(gears.build_stage1_pinion(), name="stage1_pinion",
@@ -241,8 +244,9 @@ def build() -> cq.Assembly:
              loc=cq.Location((LENS_X, SHUTTER_CENTER_Y, SHAFT_Z)))
 
     # --- Step 12: Right body half ---
+    # body_right.build() already places geometry at X=[0, +HALF_L], no offset needed
     assy.add(body_right.build(), name="body_right",
-             loc=cq.Location((CAMERA.body_length / 4, 0, 0)))
+             loc=cq.Location((0, 0, 0)))
 
     # --- Step 13: Top plate + viewfinder ---
     assy.add(top_plate.build(), name="top_plate",

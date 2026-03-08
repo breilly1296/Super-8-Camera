@@ -45,9 +45,9 @@ BRG_BORE_DIA = BRG.od + 0.05
 
 # Cartridge pocket: dominates the right interior
 # Pocket is positioned so cartridge film exit aligns with film gate
-CART_X = 25.0                          # mm right of center
-CART_Y = 5.0                           # slightly behind optical axis
-CART_Z = 5.0                           # slightly above center
+CART_X = 39.0                          # matches assembly cartridge_receiver X
+CART_Y = 0.0                           # matches assembly cartridge_receiver Y
+CART_Z = 3.0                           # matches assembly cartridge_receiver Z
 
 # Cartridge door opening on the right face (+X)
 CART_DOOR_W = CAMERA.cart_door_w       # 60 mm
@@ -135,18 +135,6 @@ def build() -> cq.Workplane:
     )
     trap = outer_trap.cut(inner_trap)
     shell = shell.cut(trap)
-
-    # --- Cartridge receiver pocket ---
-    # Large pocket for the Kodak Super 8 cartridge (68×63×21.5mm)
-    pocket_l = CARTRIDGE.length + 15.0  # 82mm (+10mm per axis for clearance)
-    pocket_w = CARTRIDGE.width + 15.0   # 77mm
-    pocket_d = CARTRIDGE.depth + 14.5   # 35.5mm
-    cart_pocket = (
-        cq.Workplane("XY")
-        .box(pocket_l, pocket_d, pocket_w)
-        .translate((CART_X, CART_Y, CART_Z))
-    )
-    shell = shell.cut(cart_pocket)
 
     # --- Film exit/entry slots through interior wall toward gate ---
     film_slot = (
@@ -308,6 +296,17 @@ def build() -> cq.Workplane:
             .translate((HALF_L - WALL, -CART_DOOR_W / 2.0, CART_Z + dz))
         )
         shell = shell.cut(door_pocket)
+
+    # --- Cartridge receiver pocket (cut LAST to override internal bosses) ---
+    pocket_l = CARTRIDGE.length + 15.0  # 82mm
+    pocket_w = CARTRIDGE.width + 15.0   # 77mm
+    pocket_d = CARTRIDGE.width + 15.0   # 77mm — fully clears receiver
+    cart_pocket = (
+        cq.Workplane("XY")
+        .box(pocket_l, pocket_d, pocket_w)
+        .translate((CART_X, CART_Y, CART_Z))
+    )
+    shell = shell.cut(cart_pocket)
 
     return shell
 
