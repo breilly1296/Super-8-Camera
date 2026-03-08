@@ -83,7 +83,7 @@ GATE_FRONT_Y = FILM_PLANE_Y + (GATE_THICK - CHANNEL_DEPTH)
 GATE_CENTER_Y = GATE_FRONT_Y - GATE_THICK / 2.0
 
 # Shutter disc position (GATE_CLEARANCE ahead of gate front face)
-SHUTTER_REAR_Y = GATE_FRONT_Y + GATE_CLEARANCE
+SHUTTER_REAR_Y = GATE_FRONT_Y + GATE_CLEARANCE + 0.8  # +0.8mm axial separation
 SHUTTER_CENTER_Y = SHUTTER_REAR_Y + DISC_THICK / 2.0
 
 # Lens mount X offset (left of body center)
@@ -102,16 +102,16 @@ GEARBOX_Z = SHAFT_Z - 18.0    # lowered 3mm to clear body cavity
 
 # Motor: attached to gearbox housing
 MOTOR_X = GEARBOX_X
-MOTOR_Y = GEARBOX_Y + MOTOR.body_length / 2.0 + 3.0  # reduced gap (was +5)
+MOTOR_Y = GEARBOX_Y + MOTOR.body_length / 2.0  # flush with gearbox (shifted 3mm inward)
 MOTOR_Z = GEARBOX_Z
 
 # Claw mechanism: below film gate, accessing perforations
 CLAW_X = LENS_X - FILM.width / 2.0 - CAMERA.claw_retract_dist
-CLAW_Y = GATE_CENTER_Y
+CLAW_Y = GATE_CENTER_Y - GATE_THICK / 2.0  # behind gate rear face, enters through perf slot
 CLAW_Z = -FILM.reg_pin_below_frame_center
 
 # Cam on shaft (lateral to claw)
-CAM_X = LENS_X - FILM.width / 2.0 - 10.0  # shifted 2mm further from gate
+CAM_X = LENS_X - FILM.width / 2.0 - 18.0  # shifted further from gate to clear
 CAM_Y = SHAFT_Y
 CAM_Z = SHAFT_Z
 
@@ -121,14 +121,14 @@ CART_Y = 0.0
 CART_Z = 3.0   # lowered 2mm from 5→3
 
 # PCB: left wall, above bottom plate
-PCB_X = CAMERA.pcb_mount_offset_x
+PCB_X = CAMERA.pcb_mount_offset_x + 2.0  # shifted 2mm toward center
 PCB_Y = 0.0
 PCB_Z = -CAMERA.body_height / 2.0 + CAMERA.wall_thickness + CAMERA.pcb_standoff_height + 2.0  # raised 2mm
 
 # Viewfinder: above and left of lens mount
 VF_X = LENS_X - VF_OFFSET_LEFT
 VF_Y = -CAMERA.body_depth / 2.0
-VF_Z = SHAFT_Z + VF_OFFSET_UP - 2.0  # lowered 2mm to keep within top plate
+VF_Z = SHAFT_Z + VF_OFFSET_UP - 4.0  # lowered 4mm to keep within top plate
 
 # Trigger: front face, below and left
 TRIGGER_X = -10.0
@@ -204,7 +204,7 @@ def build() -> cq.Assembly:
              loc=cq.Location((LENS_X, GATE_CENTER_Y, 0)))
 
     assy.add(pressure_plate.build(), name="pressure_plate",
-             loc=cq.Location((LENS_X, GATE_CENTER_Y - GATE_THICK / 2.0 - 0.5, 0)))
+             loc=cq.Location((LENS_X, GATE_CENTER_Y - GATE_THICK / 2.0 - 1.0, 0)))  # 0.5mm further from shutter
 
     # Registration pin
     assy.add(registration_pin.build(), name="registration_pin",

@@ -56,7 +56,7 @@ THREAD_MAJOR_DIA = CMOUNT.thread_major_dia    # 25.4 mm
 THREAD_DEPTH = CMOUNT.thread_depth            # 3.8 mm
 
 # Clearance bore behind the thread (opens into shutter cavity)
-CLEARANCE_BORE_DIA = CAMERA.lens_clearance_bore_dia  # was 26.0
+CLEARANCE_BORE_DIA = CAMERA.lens_clearance_bore_dia + 2.0  # 28mm, clearance for shutter disc
 
 # Total mount depth (from mount face into camera body)
 # The boss protrudes BOSS_PROTRUSION out and extends further inward.

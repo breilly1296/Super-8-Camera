@@ -138,9 +138,9 @@ def build() -> cq.Workplane:
 
     # --- Cartridge receiver pocket ---
     # Large pocket for the Kodak Super 8 cartridge (68×63×21.5mm)
-    pocket_l = CARTRIDGE.length + 1.0   # 68mm
-    pocket_w = CARTRIDGE.width + 1.0    # 63mm
-    pocket_d = CARTRIDGE.depth + 0.5    # 21.5mm
+    pocket_l = CARTRIDGE.length + 5.0   # 72mm (+2mm each side)
+    pocket_w = CARTRIDGE.width + 5.0    # 67mm (+2mm each side)
+    pocket_d = CARTRIDGE.depth + 4.5    # 25.5mm (+2mm each side)
     cart_pocket = (
         cq.Workplane("XY")
         .box(pocket_l, pocket_d, pocket_w)
