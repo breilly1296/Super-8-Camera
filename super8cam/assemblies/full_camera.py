@@ -116,7 +116,7 @@ CAM_Y = SHAFT_Y
 CAM_Z = SHAFT_Z
 
 # Cartridge receiver: right side of body, centered vertically
-CART_X = CAMERA.body_length / 4.0 + 2.0  # shifted right 2mm
+CART_X = CAMERA.body_length / 4.0 - 2.5  # ~31.25 — shifted left to fit compact body
 CART_Y = 0.0
 CART_Z = 3.0   # lowered 2mm from 5→3
 

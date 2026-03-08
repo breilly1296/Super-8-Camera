@@ -12,8 +12,14 @@ def build() -> cq.Workplane:
     # Envelope sized to contain both gear stages with 3mm clearance around
     # the largest gear (stage2: OD ≈ module*(teeth+2)).
     total_span = GEARBOX.stage1_center_distance + GEARBOX.stage2_center_distance
-    housing_w = total_span + GEARBOX.stage2_gear_pcd + 2 * WALL + 10
-    housing_h = max(GEARBOX.stage1_gear_pcd, GEARBOX.stage2_gear_pcd) + 2 * WALL + 10
+    # Use OD (PCD + 2*module) not PCD to account for gear tooth addendum
+    stage2_od = GEARBOX.stage2_gear_pcd + 2 * GEARBOX.stage2_module
+    max_gear_od = max(
+        GEARBOX.stage1_gear_pcd + 2 * GEARBOX.stage1_module,
+        stage2_od,
+    )
+    housing_w = total_span + stage2_od + 2 * WALL + CAMERA.gearbox_gear_clearance
+    housing_h = max_gear_od + 2 * WALL + CAMERA.gearbox_gear_clearance
 
     housing = (
         cq.Workplane("XY")

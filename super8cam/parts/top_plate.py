@@ -1,17 +1,17 @@
 """Top plate — covers the top of the camera body, carries viewfinder and accessory shoe.
 
 Features:
-  - Flat plate, 2.5mm thick aluminum
-  - Viewfinder mount holes (2× M2)
+  - Crowned plate (2mm convex crown via cylinder intersection)
   - Accessory shoe (cold shoe, ISO 518 standard: 18mm wide slot)
   - Strap lug on the right side
-  - 4× M2.5 screw holes to attach to body halves
+  - Viewfinder dovetail rail
+  - 4× snap latches to attach to body halves
 
 The viewfinder is offset 5mm left and sits on top.
 """
 
 import cadquery as cq
-from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.specs.master_specs import CAMERA, FASTENERS, SCULPT
 from super8cam.parts.interfaces import make_snap_latch, make_dovetail_rail
 
 # =========================================================================
@@ -74,11 +74,29 @@ def build() -> cq.Workplane:
     Lies in the XY plane at the top of the body (Z = BODY_H/2).
     X = left-right, Y = front-back.
     """
-    # --- Base plate ---
+    # --- Crowned base plate ---
+    # Start with a plate that is PLATE_THICK + CROWN tall, then intersect
+    # with a large cylinder along X to carve the crowned top surface.
+    # Sagitta formula: R = (PLATE_D/2)^2 / (2*CROWN) + CROWN/2
+    CROWN = SCULPT.top_crown  # 2.0 mm
+    crown_r = (PLATE_D / 2.0) ** 2 / (2.0 * CROWN) + CROWN / 2.0
+
     plate = (
         cq.Workplane("XY")
-        .box(PLATE_L, PLATE_D, PLATE_THICK)
+        .box(PLATE_L, PLATE_D, PLATE_THICK + CROWN)
+        .translate((0, 0, CROWN / 2.0))
     )
+
+    # Large cylinder along X axis, positioned so its bottom tangent
+    # is at Z = PLATE_THICK/2 + CROWN (top of the oversized plate),
+    # carving the crown from the top surface.
+    crown_cyl = (
+        cq.Workplane("YZ")
+        .cylinder(PLATE_L + 2.0, crown_r)
+        .translate((0, 0, PLATE_THICK / 2.0 + CROWN - crown_r))
+    )
+    plate = plate.intersect(crown_cyl)
+
     try:
         plate = plate.edges("|Z").fillet(FILLET - 1.0)
     except Exception:

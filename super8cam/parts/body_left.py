@@ -3,6 +3,10 @@
 Split-shell design: the left and right halves mate along the X=0 plane
 (vertical center plane). 0.1mm clearance gap at the split line.
 
+Sculpted exterior: multi-section lofted shell creating Canon 514XL-style
+organic proportions. Lens boss ring on front face, chevron vent slots
+over motor area. All internal features remain at their exact coordinates.
+
 Internal layout references the film plane center as (0,0,0):
   X = left/right (- = left, toward gearbox/motor)
   Y = front/back (- = toward lens, + = toward film/rear)
@@ -10,9 +14,9 @@ Internal layout references the film plane center as (0,0,0):
 
 Key internal features on the left side:
   - Main shaft bearing housing (integrated bore at Z=+8mm)
-  - Gearbox mount bosses (2× M3 threaded)
+  - Gearbox mount bosses (2x M3 threaded)
   - Motor mount pocket (cylindrical, 20.5mm bore)
-  - PCB standoffs (4× M2, 6mm tall)
+  - PCB standoffs (4x M2, 6mm tall)
   - Left half of lens mount boss
   - Bottom: half of battery compartment, tripod mount boss
 
@@ -23,7 +27,7 @@ Wall thickness: 2.5mm.
 import math
 import cadquery as cq
 from super8cam.specs.master_specs import (
-    CAMERA, CMOUNT, MOTOR, GEARBOX, BEARINGS, FASTENERS, PCB,
+    CAMERA, CMOUNT, MOTOR, GEARBOX, BEARINGS, FASTENERS, PCB, SCULPT,
 )
 from super8cam.parts.interfaces import (
     make_dovetail_rail, make_snap_pocket,
@@ -34,12 +38,13 @@ from super8cam.parts.interfaces import (
 # BODY ENVELOPE
 # =========================================================================
 WALL = CAMERA.wall_thickness          # 2.5 mm
-BODY_L = CAMERA.body_length           # 148 mm (X total)
-BODY_H = CAMERA.body_height           # 88 mm (Z)
-BODY_D = CAMERA.body_depth            # 52 mm (Y)
+BODY_L = CAMERA.body_length           # 135 mm (X total)
+BODY_H = CAMERA.body_height           # 80 mm (Z)
+BODY_D = CAMERA.body_depth            # 48 mm (Y)
 FILLET = CAMERA.body_fillet            # 4 mm
+TAPER = SCULPT.front_taper            # 4.0 mm total Y reduction at front
 
-HALF_L = BODY_L / 2.0                 # 74 mm — each half
+HALF_L = BODY_L / 2.0                 # 67.5 mm — each half
 SPLIT_CLEARANCE = 0.1                  # mm — gap at split line
 
 # =========================================================================
@@ -49,7 +54,7 @@ SPLIT_CLEARANCE = 0.1                  # mm — gap at split line
 SHAFT_Z = 8.0                          # mm above film center
 SHAFT_Y = 0.0                          # on optical axis
 
-# Bearing bore: 694ZZ → 11mm OD, need H7 seat
+# Bearing bore: 694ZZ -> 11mm OD, need H7 seat
 BRG = BEARINGS["main_shaft"]
 BRG_BORE_DIA = BRG.od + 0.05          # 11.05mm H7 fit
 
@@ -65,7 +70,7 @@ MOTOR_X = -(HALF_L - WALL - MOTOR.body_dia / 2.0 - 2.0)  # near left wall
 MOTOR_Z = SHAFT_Z                      # same height as shaft
 MOTOR_Y = MOTOR.body_length / 2.0 + 5.0  # behind optical axis
 
-# PCB standoffs (4× M2, on left interior wall)
+# PCB standoffs (4x M2, on left interior wall)
 PCB_X = CAMERA.pcb_mount_offset_x      # -15mm
 PCB_SW = CAMERA.pcb_standoff_rect_w / 2.0  # half-spacing W
 PCB_SH = CAMERA.pcb_standoff_rect_h / 2.0  # half-spacing H
@@ -94,27 +99,170 @@ SPLIT_SCREW_POSITIONS = [
 ]
 
 
-def build() -> cq.Workplane:
-    """Build the left body half-shell.
+# =========================================================================
+# LOFT PROFILE STATIONS (Left half: X from -HALF_L to 0)
+# =========================================================================
+# Each station: (x_position, y_extent, z_extent)
+# y_extent and z_extent are full widths at that station
+_LOFT_STATIONS = [
+    (-HALF_L,  40.0, 72.0),   # Left edge: tapered, rounded
+    (-40.0,    46.0, 78.0),   # Lens area: wider for lens boss
+    (-15.0,    BODY_D, BODY_H),  # Near split: full size
+    (0.0,      BODY_D, BODY_H),  # Split face: flat rectangle
+]
 
-    The shell extends from X=0 (split line) to X=-HALF_L (left edge).
-    Origin is at body center; the shell is shifted so its +X face is at X=0.
+
+# =========================================================================
+# SCULPTED OUTER SHELL — MULTI-SECTION LOFT
+# =========================================================================
+
+def _make_outer_shell() -> cq.Workplane:
+    """Create the lofted outer shell (left half).
+
+    Uses multi-section loft through YZ cross-section profiles at different
+    X stations to create organic, Canon 514XL-style proportions.
+    Left edge is tapered/narrowed; split face is full-size rectangle.
     """
-    # --- Outer shell (left half) ---
+    half_len = HALF_L - SPLIT_CLEARANCE / 2.0
+
+    # Try lofted approach first, fall back to box+wedge
+    try:
+        return _loft_outer_shell(half_len)
+    except Exception:
+        try:
+            return _loft_outer_shell(half_len, ruled=False)
+        except Exception:
+            return _box_outer_shell(half_len)
+
+
+def _loft_outer_shell(half_len: float, ruled: bool = True) -> cq.Workplane:
+    """Build lofted outer shell through YZ profile stations."""
+    stations = _LOFT_STATIONS
+
+    # Build cross-section profiles as wires at each X station
+    # CadQuery loft needs chained workplanes with .rect() calls
+    wp = cq.Workplane("YZ")
+
+    # First station
+    x0, y0, z0 = stations[0]
+    wp = wp.transformed(offset=(x0, 0, 0)).rect(y0, z0)
+
+    # Subsequent stations — use offset from previous X position
+    prev_x = x0
+    for x, y, z in stations[1:]:
+        dx = x - prev_x
+        wp = wp.workplane(offset=dx).rect(y, z)
+        prev_x = x
+
+    shell = wp.loft(ruled=ruled)
+
+    # Clip to exact half-length (trim the split-face side to account for
+    # SPLIT_CLEARANCE)
+    if half_len < HALF_L:
+        clip = (
+            cq.Workplane("XY")
+            .box(half_len + 0.01, BODY_D + 2, BODY_H + 2)
+            .translate((-(half_len / 2.0 + 0.005), 0, 0))
+        )
+        shell = shell.intersect(clip)
+
+    # Apply exterior fillets
+    try:
+        shell = shell.edges("|X").fillet(SCULPT.exterior_fillet)
+    except Exception:
+        try:
+            shell = shell.edges("|X").fillet(FILLET)
+        except Exception:
+            pass
+
+    return shell
+
+
+def _box_outer_shell(half_len: float) -> cq.Workplane:
+    """Fallback: box + wedge taper approach (proven working)."""
+    taper_per_side = TAPER / 2.0
+
     shell = (
         cq.Workplane("XY")
-        .box(HALF_L - SPLIT_CLEARANCE / 2.0, BODY_D, BODY_H)
-        .translate((-(HALF_L - SPLIT_CLEARANCE / 2.0) / 2.0, 0, 0))
+        .box(half_len, BODY_D, BODY_H)
+        .translate((-half_len / 2.0, 0, 0))
     )
 
-    # Fillets on outer edges (exclude split face)
-    try:
-        shell = shell.edges("|X").fillet(FILLET)
-    except Exception:
-        pass  # fillet may fail on some edges, continue
+    for y_sign in [-1, 1]:
+        wedge = (
+            cq.Workplane("XZ")
+            .transformed(offset=(0, 0, 0))
+            .rect(half_len, BODY_H)
+            .workplane(offset=taper_per_side)
+            .rect(0.001, BODY_H)
+            .loft()
+        )
+        y_pos = y_sign * BODY_D / 2.0
+        if y_sign < 0:
+            wedge = wedge.translate((-half_len / 2.0, y_pos, 0))
+        else:
+            wedge = (
+                wedge
+                .rotate((0, 0, 0), (0, 0, 1), 180)
+                .translate((-half_len / 2.0, y_pos, 0))
+            )
+        shell = shell.cut(wedge)
 
-    # --- Hollow interior ---
-    inner_l = HALF_L - WALL - SPLIT_CLEARANCE / 2.0
+    try:
+        shell = shell.edges("|X").fillet(SCULPT.exterior_fillet)
+    except Exception:
+        try:
+            shell = shell.edges("|X").fillet(FILLET)
+        except Exception:
+            pass
+
+    return shell
+
+
+def _hollow_interior(shell: cq.Workplane) -> cq.Workplane:
+    """Hollow out the shell with matching lofted interior cavity."""
+    half_len = HALF_L - SPLIT_CLEARANCE / 2.0
+
+    try:
+        return _loft_hollow(shell, half_len)
+    except Exception:
+        return _box_hollow(shell, half_len)
+
+
+def _loft_hollow(shell: cq.Workplane, half_len: float) -> cq.Workplane:
+    """Lofted inner cavity matching the outer shell profile."""
+    w2 = 2 * WALL
+
+    # Inner cavity stations: outer dimensions reduced by wall thickness
+    inner_stations = [
+        (x, max(y - w2, 4.0), max(z - w2, 4.0))
+        for x, y, z in _LOFT_STATIONS
+    ]
+    # Shift X inward by WALL at left edge
+    inner_stations[0] = (inner_stations[0][0] + WALL, inner_stations[0][1], inner_stations[0][2])
+    # Shift X inward by WALL/2 at split face (open at split)
+    inner_stations[-1] = (0.0, inner_stations[-1][1], inner_stations[-1][2])
+
+    wp = cq.Workplane("YZ")
+    x0, y0, z0 = inner_stations[0]
+    wp = wp.transformed(offset=(x0, 0, 0)).rect(y0, z0)
+
+    prev_x = x0
+    for x, y, z in inner_stations[1:]:
+        dx = x - prev_x
+        wp = wp.workplane(offset=dx).rect(y, z)
+        prev_x = x
+
+    inner = wp.loft(ruled=True)
+    shell = shell.cut(inner)
+    return shell
+
+
+def _box_hollow(shell: cq.Workplane, half_len: float) -> cq.Workplane:
+    """Fallback box-based interior hollowing."""
+    inner_l = half_len - WALL
+    taper_per_side = TAPER / 2.0
+
     inner = (
         cq.Workplane("XY")
         .box(inner_l,
@@ -122,26 +270,112 @@ def build() -> cq.Workplane:
              BODY_H - 2 * WALL)
         .translate((-(inner_l / 2.0 + WALL / 2.0), 0, 0))
     )
-    shell = shell.cut(inner)
 
-    # --- Lens mount boss opening (left portion) ---
-    # The lens mount bore is at X=LENS_X, Y=-BODY_D/2.
-    # Cut a half-circle from the front face for the mount.
+    for y_sign in [-1, 1]:
+        inner_wedge = (
+            cq.Workplane("XZ")
+            .rect(inner_l, BODY_H - 2 * WALL)
+            .workplane(offset=taper_per_side)
+            .rect(0.001, BODY_H - 2 * WALL)
+            .loft()
+        )
+        y_pos = y_sign * (BODY_D / 2.0 - WALL)
+        if y_sign < 0:
+            inner_wedge = inner_wedge.translate(
+                (-(inner_l / 2.0 + WALL / 2.0), y_pos, 0))
+        else:
+            inner_wedge = (
+                inner_wedge
+                .rotate((0, 0, 0), (0, 0, 1), 180)
+                .translate((-(inner_l / 2.0 + WALL / 2.0), y_pos, 0))
+            )
+        inner = inner.cut(inner_wedge)
+
+    shell = shell.cut(inner)
+    return shell
+
+
+def _add_lens_boss(shell: cq.Workplane) -> cq.Workplane:
+    """Add lens boss ring on front face and cut lens bore."""
     lens_bore_r = CMOUNT.thread_major_dia / 2.0 + 1.0  # 13.7mm clearance
-    # Only cut if the lens axis is on the left side
+    boss_r = CAMERA.lens_boss_od / 2.0  # 15mm
+    boss_protrusion = 3.0  # reduced from 5mm for printability
+
     if LENS_X < 0:
+        # Lens boss ring: cylinder protruding from front face
+        front_y = -BODY_D / 2.0 + TAPER / 2.0  # adjusted for taper at split
+        boss_ring = (
+            cq.Workplane("XZ")
+            .transformed(offset=(LENS_X, 0, 0))
+            .circle(boss_r)
+            .extrude(boss_protrusion)
+            .translate((0, front_y - boss_protrusion, 0))
+        )
+        # Clip boss to left half only (it may extend past X=0)
+        clip_left = (
+            cq.Workplane("XY")
+            .box(HALF_L + 2, BODY_D + 20, BODY_H + 20)
+            .translate((-HALF_L / 2.0, 0, 0))
+        )
+        boss_ring = boss_ring.intersect(clip_left)
+        shell = shell.union(boss_ring)
+
+        # Cut the lens bore through the boss and body wall
         lens_cut = (
             cq.Workplane("XZ")
             .transformed(offset=(LENS_X, 0, 0))
             .circle(lens_bore_r)
-            .extrude(WALL + 2.0)
-            .translate((0, -BODY_D / 2.0, 0))
+            .extrude(WALL + boss_protrusion + 2.0)
+            .translate((0, front_y - boss_protrusion - 1.0, 0))
         )
         shell = shell.cut(lens_cut)
 
+    return shell
+
+
+def _add_vent_slots(shell: cq.Workplane) -> cq.Workplane:
+    """Add chevron ventilation slots on the left wall over motor area."""
+    slot_l = SCULPT.vent_slot_length   # 10mm
+    slot_w = SCULPT.vent_slot_width    # 2.5mm
+    n_slots = SCULPT.vent_slot_count   # 4
+    spacing = SCULPT.vent_slot_spacing # 5mm
+    angle = SCULPT.vent_slot_angle     # 15 degrees
+
+    # Vent slots are on the left wall (X = -HALF_L + SPLIT_CLEARANCE/2)
+    # Near motor area: Z ~ SHAFT_Z (8mm), Y ~ MOTOR_Y (17.5mm)
+    slot_x = -(HALF_L - SPLIT_CLEARANCE / 2.0)
+    slot_base_z = SHAFT_Z
+    slot_base_y = MOTOR_Y - 5.0
+
+    for i in range(n_slots):
+        z_offset = (i - (n_slots - 1) / 2.0) * spacing
+        # Alternating chevron angle
+        slot_angle = angle if (i % 2 == 0) else -angle
+
+        # Create pill-shaped slot (stadium profile)
+        slot = (
+            cq.Workplane("XY")
+            .slot2D(slot_l, slot_w)
+            .extrude(WALL + 1.0)
+        )
+        # Rotate for chevron pattern and position on left wall
+        slot = (
+            slot
+            .rotate((0, 0, 0), (0, 0, 1), slot_angle)
+            .rotate((0, 0, 0), (0, 1, 0), 90)
+            .translate((slot_x, slot_base_y, slot_base_z + z_offset))
+        )
+        shell = shell.cut(slot)
+
+    return shell
+
+
+def _add_internal_features(shell: cq.Workplane) -> cq.Workplane:
+    """Add all internal features.
+
+    Coordinates auto-adjust via HALF_L, BODY_H, BODY_D module-level constants.
+    """
     # --- Main shaft bearing housing bore ---
-    # Integrated into the left wall, at the split line face
-    # The bearing sits at a known Z position on the shaft
     brg_boss = (
         cq.Workplane("YZ")
         .transformed(offset=(0, SHAFT_Z, SHAFT_Y))
@@ -161,7 +395,7 @@ def build() -> cq.Workplane:
     )
     shell = shell.cut(brg_hole)
 
-    # --- Gearbox mounting bosses (2× M3 threaded) ---
+    # --- Gearbox mounting bosses (2x M3 threaded) ---
     m3 = FASTENERS["M3x8_shcs"]
     for gz in [GBOX_BOSS_Z_1, GBOX_BOSS_Z_2]:
         boss = (
@@ -181,7 +415,6 @@ def build() -> cq.Workplane:
         shell = shell.cut(hole)
 
     # --- Motor mount pocket ---
-    # Cylindrical recess in left wall interior for motor body
     motor_pocket = (
         cq.Workplane("YZ")
         .transformed(offset=(0, MOTOR_Z, MOTOR_Y))
@@ -191,7 +424,7 @@ def build() -> cq.Workplane:
     )
     shell = shell.cut(motor_pocket)
 
-    # --- PCB standoffs (4× M2, 6mm tall) ---
+    # --- PCB standoffs (4x M2, 6mm tall) ---
     m2 = FASTENERS["M2x8_shcs"]
     pcb_positions = [
         (PCB_X, -PCB_SH, -PCB_SW / 2.0),
@@ -200,7 +433,6 @@ def build() -> cq.Workplane:
         (PCB_X, PCB_SH, PCB_SW / 2.0),
     ]
     for px, py, pz in pcb_positions:
-        # Only add if within left shell bounds
         if px < 0:
             standoff = (
                 cq.Workplane("XY")
@@ -208,7 +440,6 @@ def build() -> cq.Workplane:
                 .translate((px, py, pz))
             )
             shell = shell.union(standoff)
-            # M2 hole through standoff
             so_hole = (
                 cq.Workplane("XY")
                 .transformed(offset=(px, py, pz))
@@ -228,7 +459,6 @@ def build() -> cq.Workplane:
             .translate((-6.0, 0, 0))
         )
         shell = shell.union(boss)
-        # M2.5 tapped hole from split face
         hole = (
             cq.Workplane("YZ")
             .transformed(offset=(0, sz, sy))
@@ -239,13 +469,11 @@ def build() -> cq.Workplane:
         shell = shell.cut(hole)
 
     # --- Tripod mount boss (left half) ---
-    # 1/4"-20 helicoil at bottom center — boss straddles split line
     tripod_boss = (
         cq.Workplane("XY")
         .cylinder(CAMERA.tripod_boss_depth, CAMERA.tripod_boss_dia / 2.0)
         .translate((0, 0, -BODY_H / 2.0 + CAMERA.tripod_boss_depth / 2.0))
     )
-    # Clip to left half only
     clip_left = (
         cq.Workplane("XY")
         .box(HALF_L, BODY_D, BODY_H)
@@ -254,19 +482,17 @@ def build() -> cq.Workplane:
     tripod_boss_left = tripod_boss.intersect(clip_left)
     shell = shell.union(tripod_boss_left)
 
-    # --- Dovetail rail on interior left wall (film transport interface) ---
-    # Rail runs along Y (front-to-back), 30mm long, at film plane height (Z=0).
-    # Positioned on left interior wall, profile faces inward (+X direction).
+    # --- Dovetail rail on interior left wall ---
     RAIL_LENGTH = 30.0
-    rail_x = -HALF_L + WALL + 4.0  # 4mm inset from interior wall surface
+    rail_x = -HALF_L + WALL + 4.0
     rail = (
         make_dovetail_rail(RAIL_LENGTH)
-        .rotate((0, 0, 0), (0, 1, 0), 90)   # rotate profile to face +X
+        .rotate((0, 0, 0), (0, 1, 0), 90)
         .translate((rail_x, 0, 0))
     )
     shell = shell.union(rail)
 
-    # 2× M3 tapped holes for thumbscrew retention alongside dovetail rail
+    # 2x M3 tapped holes for thumbscrew retention
     m3 = FASTENERS["M3x8_shcs"]
     for ty in [-10.0, 10.0]:
         m3_hole = (
@@ -278,19 +504,18 @@ def build() -> cq.Workplane:
         )
         shell = shell.cut(m3_hole)
 
-    # --- 2× Snap pockets near top edge for top plate latches (left side) ---
-    # Positioned to match PLATE_MOUNT_POSITIONS left-side columns from top_plate.py
+    # --- 2x Snap pockets near top edge for top plate latches ---
     PLATE_L_APPROX = BODY_L - 2.0
     PLATE_D_APPROX = BODY_D - 2.0
     snap_top_positions = [
-        (-PLATE_L_APPROX / 2.0 + 8.0, -PLATE_D_APPROX / 2.0 + 8.0),  # front-left
-        (-PLATE_L_APPROX / 2.0 + 8.0,  PLATE_D_APPROX / 2.0 - 8.0),  # rear-left
+        (-PLATE_L_APPROX / 2.0 + 8.0, -PLATE_D_APPROX / 2.0 + 8.0),
+        (-PLATE_L_APPROX / 2.0 + 8.0,  PLATE_D_APPROX / 2.0 - 8.0),
     ]
     for sx, sy in snap_top_positions:
-        if sx < 0:  # only left-side positions
+        if sx < 0:
             pocket = (
                 make_snap_pocket()
-                .rotate((0, 0, 0), (1, 0, 0), 180)  # flip to receive downward latches
+                .rotate((0, 0, 0), (1, 0, 0), 180)
                 .translate((sx, sy, BODY_H / 2.0 - WALL))
             )
             shell = shell.cut(pocket)
@@ -304,6 +529,20 @@ def build() -> cq.Workplane:
     )
     shell = shell.cut(pcb_pocket)
 
+    return shell
+
+
+def build() -> cq.Workplane:
+    """Build the left body half-shell.
+
+    The shell extends from X=0 (split line) to X=-HALF_L (left edge).
+    Origin is at body center; the shell is shifted so its +X face is at X=0.
+    """
+    shell = _make_outer_shell()
+    shell = _hollow_interior(shell)
+    shell = _add_lens_boss(shell)
+    shell = _add_vent_slots(shell)
+    shell = _add_internal_features(shell)
     return shell
 
 

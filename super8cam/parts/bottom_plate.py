@@ -8,7 +8,7 @@ Features:
 """
 
 import cadquery as cq
-from super8cam.specs.master_specs import CAMERA, FASTENERS
+from super8cam.specs.master_specs import CAMERA, FASTENERS, SCULPT
 from super8cam.parts.interfaces import make_snap_pocket
 
 # =========================================================================
@@ -144,6 +144,20 @@ def build() -> cq.Workplane:
             .extrude(M25.head_height + 0.3)
         )
         plate = plate.cut(cbore)
+
+    # --- Pistol grip pass-through cutout ---
+    # Rectangular opening where the grip (integral to body_right) passes through
+    # the bottom plate. X range [grip_x_start, grip_x_start + grip_width].
+    grip_cut_x_start = SCULPT.grip_x_start       # 45 mm
+    grip_cut_x_end = min(grip_cut_x_start + SCULPT.grip_width, PLATE_L / 2.0)  # clamp to plate edge
+    grip_cut_cx = (grip_cut_x_start + grip_cut_x_end) / 2.0
+    grip_cut_len = grip_cut_x_end - grip_cut_x_start
+    grip_cutout = (
+        cq.Workplane("XY")
+        .box(grip_cut_len, PLATE_D, PLATE_THICK + 2.0)
+        .translate((grip_cut_cx, 0, 0))
+    )
+    plate = plate.cut(grip_cutout)
 
     # --- Strap lug on left side ---
     lug = (

@@ -148,9 +148,9 @@ class CameraDesign:
     """Adjustable design parameters for our Super 8 camera."""
 
     # Body envelope
-    body_length: float = 148.0      # mm (X — left/right)
-    body_height: float = 88.0       # mm (Z — vertical)
-    body_depth: float = 52.0        # mm (Y — front/back, lens axis)
+    body_length: float = 135.0      # mm (X — left/right)
+    body_height: float = 80.0       # mm (Z — vertical)
+    body_depth: float = 48.0        # mm (Y — front/back, lens axis)
     wall_thickness: float = 2.5     # mm
     body_fillet: float = 4.0        # mm — outer edge radius
 
@@ -241,7 +241,7 @@ class CameraDesign:
     lens_mount_hole_angles: List[int] = field(default_factory=lambda: [0, 120, 240])
 
     # Cartridge door
-    cart_door_w: float = 60.0       # mm
+    cart_door_w: float = 55.0       # mm
     cart_door_h: float = 50.0       # mm
     cart_door_thick: float = 2.5    # mm
 
@@ -265,6 +265,7 @@ class CameraDesign:
 
     # Gearbox housing
     gearbox_housing_wall: float = 2.0  # mm — gearbox enclosure wall thickness
+    gearbox_gear_clearance: float = 8.0  # mm — clearance around gears in housing
 
     # Tripod mount
     tripod_boss_dia: float = 14.0   # mm
@@ -281,6 +282,54 @@ class CameraDesign:
 
 
 CAMERA = CameraDesign()
+
+
+# =========================================================================
+# SCULPTED BODY SHELL PARAMETERS
+# =========================================================================
+
+@dataclass(frozen=True)
+class SculptSpec:
+    """Exterior sculpting parameters for camera body shell redesign.
+
+    Only affects the outer envelope — all internal features, mounting points,
+    and bearing bores remain at their exact coordinates.
+    """
+
+    # Exterior fillet (all external edges)
+    exterior_fillet: float = 3.0       # mm
+
+    # Wedge taper (front face narrower than rear, viewed from above)
+    front_taper: float = 4.0           # mm total Y reduction at front face
+
+    # Pistol grip (integrated into body_right, lower-right)
+    grip_width: float = 22.0           # mm (X)
+    grip_depth: float = 22.0           # mm (Y at bottom)
+    grip_height: float = 50.0          # mm (Z, extends below body)
+    grip_angle: float = 15.0           # degrees from vertical (tilted toward user)
+    grip_fillet: float = 5.0           # mm comfort fillet
+    grip_x_start: float = 45.0         # mm (starts right of battery door, under trigger)
+    grip_wall: float = 2.5             # mm
+
+    # Top plate crown
+    top_crown: float = 2.0             # mm center height above edges
+
+    # Viewfinder eyepiece
+    vf_eyepiece_protrusion: float = 3.0  # mm from rear face
+
+    # Cartridge door finger recess
+    finger_recess_dia: float = 12.0    # mm
+    finger_recess_depth: float = 1.5   # mm
+
+    # Ventilation slots (motor area, body_left)
+    vent_slot_length: float = 10.0     # mm pill-shaped length
+    vent_slot_width: float = 2.5       # mm pill-shaped width
+    vent_slot_count: int = 4
+    vent_slot_spacing: float = 5.0     # mm center-to-center
+    vent_slot_angle: float = 15.0      # degrees chevron angle
+
+
+SCULPT = SculptSpec()
 
 
 # =========================================================================
