@@ -12,7 +12,7 @@ A fully parametric motion picture camera designed from scratch in CadQuery. Ever
 | Lens mount | C-mount (25.4 mm, 32 TPI, 17.526 mm FFD) |
 | Frame rates | 18 fps, 24 fps (switch-selectable) |
 | Shutter | 180-degree rotary disc |
-| Body envelope | 148 x 88 x 52 mm |
+| Body envelope | 135 x 80 x 48 mm |
 | Body material | Aluminum 6061-T6, 2.5 mm wall |
 | Film gate | Brass C360 (free-machining) |
 | Drivetrain | Mabuchi FF-130SH, 2-stage Delrin spur gears (6:1) |
@@ -35,6 +35,72 @@ The camera is organized into 7 field-swappable modules. Each module can be remov
 | MOD-700 | Optics | Dovetail | User | 20 s | Viewfinder |
 
 Modules interconnect via 7 JST connectors (XH 2.5 mm + VH 3.96 mm) with unique pin counts to prevent cross-connection. Each connector is keyed to exactly one module pair.
+
+## Framework for Film
+
+This camera borrows its philosophy from [Framework laptops](https://frame.work): **every single part is replaceable, individually purchasable, and forward-compatible across versions.**
+
+### Every Part is Replaceable
+
+There are no glued, riveted, or permanently bonded assemblies. Every component — from the brass film gate to the battery door hinge pin — can be removed with standard hex keys and replaced with an identical spare. The complete [spare parts catalog](super8cam/business/store_catalog.py) lists 35+ SKUs available individually, from a $3 registration pin to complete pre-assembled modules.
+
+### Interface Specification (Frozen)
+
+The [interface standard](super8cam/specs/interface_standard.py) defines the immutable contract between all modules and the chassis:
+
+| Interface | Spec | Status |
+|-----------|------|--------|
+| Dovetail rail | 60 deg, 4mm top / 6mm base / 3mm deep | FROZEN v1.0 |
+| Thumb screws | M3, 20mm center-to-center spacing | FROZEN v1.0 |
+| Module slots | 7 slots with exact X/Y/Z coordinates | FROZEN v1.0 |
+| Connectors | J1-J7 pinouts, families, wire colors | FROZEN v1.0 |
+| Fasteners | M2 / M2.5 / M3 / 1/4"-20 only | FROZEN v1.0 |
+
+A MOD-100 Film Transport manufactured in 2026 will drop into a MOD-100 slot on a chassis built in 2030. The interface spec version guarantees it.
+
+### Future-Proof: Expansion Slot
+
+The chassis includes a reserved expansion slot (MOD-EXP) with a 10-pin JST-XH connector providing:
+
+```
+SDA, SCL, TX, RX, PWM1, PWM2, 3V3, 5V, GND, GND
+```
+
+V1 ships with a blank cover plate. This enables community-designed expansion modules:
+- Digital frame counter
+- Bluetooth sync / remote trigger
+- Intervalometer (time-lapse)
+- Sound recording module
+- GPS location logger
+- External light meter interface
+
+The expansion slot position, connector pinout, and dovetail mounting are part of the frozen interface standard.
+
+### Module Map
+
+```
+  LEFT HALF (chassis)                    RIGHT HALF
+  ┌──────────────────────────────┐┌──────────────────────┐
+  │  MOD-700   MOD-200           ││  MOD-400             │
+  │  Optics    Shutter           ││  Cartridge Bay       │
+  │  ┌─────┐  ┌──────┐          ││  ┌──────────────┐    │
+  │  │Lens │  │Disc  │          ││  │Receiver      │    │
+  │  │Mount│  │Shaft │  MOD-300 ││  │Door          │    │
+  │  └─────┘  └──────┘  Drive   ││  └──────────────┘    │
+  │                     ┌─────┐ ││                       │
+  │  MOD-100            │Motor│ ││  MOD-EXP              │
+  │  Film Transport     │Gears│ ││  (Expansion)          │
+  │  ┌──────────────┐   └─────┘ ││  ┌───────────┐       │
+  │  │Gate+Claw+Cam │           ││  │ 10-pin XH │       │
+  │  │Plate+Channel │  MOD-500  ││  │ blank cap │       │
+  │  └──────────────┘  ┌──────┐ ││  └───────────┘       │
+  │                    │PCB   │ ││                       │
+  │                    │J1-J7 │ ││                       │
+  │                    └──────┘ ││                       │
+  ├─────────────────────────────┤├──────────────────────-┤
+  │           MOD-600  Power (Battery Bay)               │
+  └──────────────────────────────┘──────────────────────-┘
+```
 
 ## Design Philosophy
 
@@ -100,6 +166,7 @@ Super-8-Camera/
     specs/
       master_specs.py           Single source of truth
       modularity.py             Module architecture + connector map + part catalog
+      interface_standard.py     FROZEN interface spec (dovetails, slots, pinouts)
     parts/                      23 CadQuery part modules
     assemblies/                 8 sub-assembly modules
       full_camera.py            Master assembly + interference detection
@@ -114,6 +181,9 @@ Super-8-Camera/
       generate_checklist.py     Production checklist PDF
       generate_wiring.py        Wiring harness diagram PDF
       repair_guide.py           Repair & maintenance guide PDF
+      generate_qr.py            QR codes + compatibility labels for all parts
+    business/                   Store and catalog
+      store_catalog.py          Shopify-compatible spare parts catalog (35+ SKUs)
     firmware/                   STM32L031K6 bare-metal firmware
       platformio.ini            PlatformIO build config
       src/
