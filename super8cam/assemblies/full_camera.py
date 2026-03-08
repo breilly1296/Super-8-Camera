@@ -354,11 +354,16 @@ def check_interference(assy: cq.Assembly = None,
     warnings = []
     all_clear = True
 
-    # Build a lookup of individual part solids by name
+    # Build a lookup of individual part solids positioned in world coords.
+    # Each child in the assembly carries a Location transform that must be
+    # applied to the raw shape so that interference checks use the actual
+    # assembly positions rather than every part sitting at the origin.
     part_solids = {}
-    for name, shape in _iter_assembly_parts(assy):
+    for name, shape, loc in _iter_assembly_parts(assy):
         try:
             solid = _get_solid(shape)
+            if loc is not None:
+                solid = solid.moved(loc)
             part_solids[name] = solid
         except Exception:
             pass
@@ -422,12 +427,18 @@ def check_interference(assy: cq.Assembly = None,
 
 
 def _iter_assembly_parts(assy: cq.Assembly):
-    """Yield (name, shape) for each child in a CQ Assembly."""
+    """Yield (name, shape, location) for each child in a CQ Assembly.
+
+    The location is the transform applied when the part was added to the
+    assembly via ``assy.add(..., loc=...)``.  Callers must apply it to the
+    shape (via ``solid.moved(loc)``) to get the world-positioned geometry.
+    """
     if hasattr(assy, 'children'):
         for child in assy.children:
             name = child.name if hasattr(child, 'name') else str(child)
             shape = child.obj if hasattr(child, 'obj') else child
-            yield name, shape
+            loc = child.loc if hasattr(child, 'loc') else None
+            yield name, shape, loc
 
 
 def _compute_volume(shape) -> float:
