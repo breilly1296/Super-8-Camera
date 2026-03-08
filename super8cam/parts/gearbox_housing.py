@@ -20,10 +20,10 @@ def build() -> cq.Workplane:
         .edges("|Z").fillet(1.5)
     )
 
-    # Hollow out interior
+    # Hollow out interior (extra 2mm per axis for gear clearance)
     inner = (
         cq.Workplane("XY")
-        .box(housing_w - 2 * WALL, housing_h - 2 * WALL, HOUSING_DEPTH - WALL)
+        .box(housing_w - 2 * WALL + 2, housing_h - 2 * WALL + 2, HOUSING_DEPTH - WALL + 2)
         .translate((0, 0, WALL / 2))
     )
     housing = housing.cut(inner)

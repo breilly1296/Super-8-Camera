@@ -101,6 +101,23 @@ def build() -> cq.Workplane:
     )
     plate = plate.cut(spring_recess)
 
+    # --- Viewfinder tube clearance cutout ---
+    # Cut a through-hole where the viewfinder tube passes through the plate.
+    # The viewfinder is at LENS_X - VF_OFFSET_LEFT in world X (= plate local X),
+    # near the front edge of the plate, running along Y into the camera.
+    VF_PASS_X = CAMERA.lens_mount_offset_x - VF_OFFSET_LEFT
+    VF_TUBE_W = 10.0   # viewfinder tube width (from VF_SPEC)
+    VF_TUBE_D = 8.0     # viewfinder tube depth
+    VF_MARGIN = 5.0     # clearance margin
+    vf_cutout = (
+        cq.Workplane("XY")
+        .box(VF_TUBE_W + VF_MARGIN, VF_TUBE_D + VF_MARGIN, PLATE_THICK + 2)
+        .translate((VF_PASS_X,
+                    -PLATE_D / 2.0 + (VF_TUBE_D + VF_MARGIN) / 2.0,
+                    0))
+    )
+    plate = plate.cut(vf_cutout)
+
     # --- Viewfinder dovetail rail on top surface ---
     # Replaces M2 screw holes; viewfinder now slides onto dovetail.
     # Rail along Y axis at X = VF_X (-5mm), 40mm long, raised above surface.
