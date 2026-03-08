@@ -5,8 +5,9 @@ claw's vertical pulldown motion, and a secondary eccentric to produce the
 horizontal engage/retract motion.  Together they create a rectangular claw
 tip path: engage → pulldown → retract → return.
 
-Cam profile uses a modified trapezoidal (1/4-1/2-1/4) acceleration pattern
-for the pulldown phase to minimise jerk and prevent film tearing.
+Cam profile uses a modified sinusoidal (cycloidal) motion profile
+for pulldown and return phases, ensuring zero velocity at stroke
+endpoints and finite jerk throughout to prevent film tearing.
 
 All dimensions from master_specs.
 """
@@ -78,37 +79,23 @@ ECLIP_BORE = CAM_SPEC.eclip_bore
 # CAM PROFILE MATH
 # =========================================================================
 
-def _modified_trapezoid(theta_norm):
-    """Modified trapezoidal motion (1/4-1/2-1/4 acceleration pattern).
+def _modified_sine(theta_norm):
+    """Modified sinusoidal (cycloidal) motion profile.
 
     theta_norm in [0, 1] → displacement in [0, 1].
 
-    Segments:
-      0.00–0.25 : acceleration ramp-up   (sine accel)
-      0.25–0.75 : constant velocity       (linear)
-      0.75–1.00 : deceleration ramp-down  (sine decel)
+    Properties:
+      - Displacement: continuous, monotonic
+      - Velocity: zero at endpoints (smooth start/stop)
+      - Acceleration: zero at endpoints
+      - Jerk: finite everywhere (no discontinuities)
 
-    This gives smooth acceleration at start and end while maintaining
-    nearly constant velocity through the middle of the stroke.
+    This is the standard cycloidal cam profile, producing sinusoidal
+    acceleration and ensuring zero velocity at both ends of the stroke.
     """
     scalar = np.ndim(theta_norm) == 0
     s = np.atleast_1d(np.asarray(theta_norm, dtype=float))
-    d = np.zeros_like(s)
-
-    # Phase 1: sine ramp-up  [0, 0.25] → d in [0, 0.125]
-    m1 = s <= 0.25
-    t1 = s[m1] / 0.25  # normalise to [0,1]
-    d[m1] = 0.125 * (t1 - (1.0 / (2.0 * np.pi)) * np.sin(2.0 * np.pi * t1))
-
-    # Phase 2: constant velocity  [0.25, 0.75] → d in [0.125, 0.875]
-    m2 = (s > 0.25) & (s <= 0.75)
-    d[m2] = 0.125 + 0.75 * (s[m2] - 0.25) / 0.5
-
-    # Phase 3: sine ramp-down  [0.75, 1.0] → d in [0.875, 1.0]
-    m3 = s > 0.75
-    t3 = (s[m3] - 0.75) / 0.25
-    d[m3] = 0.875 + 0.125 * (t3 - (1.0 / (2.0 * np.pi)) * np.sin(2.0 * np.pi * t3))
-
+    d = s - np.sin(2.0 * np.pi * s) / (2.0 * np.pi)
     return float(d[0]) if scalar else d
 
 
@@ -119,14 +106,14 @@ def cam_profile_full(n_points: int = 360) -> dict:
         x = horizontal (positive = toward film, engage direction)
         y = vertical   (positive = upward, negative = pulldown direction)
 
-    Phase map (shaft angle θ — wraps around 360°/0°):
-        190°–340°: pulldown      (claw pulls film down 4.234 mm)
-        340°–350°: retract       (claw moves away from film)
-        350°–5°  : engage        (claw moves toward film horizontally)
-        5°–10°   : dwell         (registration pin engages, film settled)
-        10°–180° : shutter OPEN  (exposure — film stationary, pin engaged)
-        180°–185°: reg pin disengages
-        185°–190°: shutter CLOSES
+    Phase map (shaft angle θ):
+          0°–180°: shutter OPEN  (exposure — film stationary, pin engaged)
+        180°–185°: shutter CLOSES, reg pin disengages
+        185°–190°: claw ENGAGES  (moves toward film, 2 mm horizontal)
+        190°–330°: PULLDOWN      (claw pulls film down 4.234 mm)
+        330°–335°: claw RETRACTS (moves away from film)
+        335°–350°: RETURN stroke (claw moves back to top position)
+        350°–360°: DWELL         (film settles, registration pin engages)
 
     Returns dict with arrays: theta_deg, x_mm, y_mm, vx_mm_per_deg,
     vy_mm_per_deg, ax, ay.
@@ -140,46 +127,45 @@ def cam_profile_full(n_points: int = 360) -> dict:
 
     for i, th in enumerate(theta):
         # ----- VERTICAL (y) -----
-        if th < 5.0:
-            # Claw at top, returning from engage (wrap from 350°)
+        if th < 185.0:
+            # Shutter open + close — claw at top, stationary
             y[i] = 0.0
         elif th < 190.0:
-            # Dwell at top — film stationary, shutter open 10°-180°
+            # Engage phase — vertical stays at top
             y[i] = 0.0
-        elif th < 340.0:
-            # Pulldown: modified trapezoidal 190°→340° (150° arc)
-            t_norm = (th - 190.0) / 150.0
-            y[i] = -stroke_v * _modified_trapezoid(t_norm)
-        elif th < 350.0:
+        elif th < 330.0:
+            # Pulldown: modified sine 190°→330° (140° arc)
+            t_norm = (th - 190.0) / 140.0
+            y[i] = -stroke_v * _modified_sine(t_norm)
+        elif th < 335.0:
             # Retract — vertical stays at bottom
             y[i] = -stroke_v
+        elif th < 350.0:
+            # Return stroke: 335°→350° (15° arc) — modified sine return
+            t_norm = (th - 335.0) / 15.0
+            y[i] = -stroke_v * (1.0 - _modified_sine(t_norm))
         else:
-            # Return stroke: 350°→360°+5° (15° arc) — sine return
-            # Quick return to top over 15° (350°→365° wraps to 5°)
-            t_norm = (th - 350.0) / 15.0
-            y[i] = -stroke_v * (1.0 - (1.0 - math.cos(math.pi * t_norm)) / 2.0)
+            # Dwell: 350°→360° — claw at top, stationary
+            y[i] = 0.0
 
         # ----- HORIZONTAL (x) -----
-        if th < 5.0:
-            # Engage wrapping from 350°: 350°→5° = 15° arc
-            # At th=0, we're 10° into the 15° engage arc
-            t_norm = (th + 10.0) / 15.0  # 10°→15° portion
-            x[i] = stroke_h * (1.0 - math.cos(math.pi * t_norm)) / 2.0
+        if th < 185.0:
+            # Retracted — no engagement during exposure + close
+            x[i] = 0.0
         elif th < 190.0:
-            # Engaged — full depth (dwell + exposure)
-            x[i] = stroke_h
-        elif th < 340.0:
+            # Engage: smooth sine 185°→190° (5° arc)
+            t_norm = (th - 185.0) / 5.0
+            x[i] = stroke_h * (1.0 - math.cos(math.pi * t_norm)) / 2.0
+        elif th < 330.0:
             # Engaged during pulldown
             x[i] = stroke_h
-        elif th < 350.0:
-            # Retract: smooth sine 340°→350°
-            t_norm = (th - 340.0) / 10.0
+        elif th < 335.0:
+            # Retract: smooth sine 330°→335° (5° arc)
+            t_norm = (th - 330.0) / 5.0
             x[i] = stroke_h * (1.0 + math.cos(math.pi * t_norm)) / 2.0
         else:
-            # Engage: smooth sine 350°→5° (15° arc)
-            # At 350°, we're 0° into the arc
-            t_norm = (th - 350.0) / 15.0  # 0°→10° portion
-            x[i] = stroke_h * (1.0 - math.cos(math.pi * t_norm)) / 2.0
+            # Retracted during return + dwell
+            x[i] = 0.0
 
     # Numerical derivatives (per degree)
     d_theta = theta[1] - theta[0]

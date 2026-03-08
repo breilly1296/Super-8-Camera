@@ -1044,14 +1044,14 @@ class ShutterTiming:
         return 1.0 / self.exposure_time(fps)
 
     # Phase boundaries (degrees of shaft rotation)
-    phase1_start: float = 10.0          # shutter open
+    phase1_start: float = 0.0           # shutter open
     phase1_end: float = 180.0           # shutter closes
-    phase2_start: float = 350.0         # claw engage begins (wraps 0°)
-    phase2_end: float = 5.0             # claw fully engaged
+    phase2_start: float = 185.0         # claw engage begins
+    phase2_end: float = 190.0           # claw fully engaged
     phase3_start: float = 190.0         # pulldown begins
-    phase3_end: float = 340.0           # pulldown complete
-    phase4_start: float = 340.0         # claw retract
-    phase4_end: float = 350.0           # retract complete
+    phase3_end: float = 330.0           # pulldown complete
+    phase4_start: float = 330.0         # claw retract
+    phase4_end: float = 335.0           # retract complete
 
     @property
     def pulldown_arc(self) -> float:
@@ -1064,8 +1064,8 @@ class ShutterTiming:
 
     def settle_time(self, fps: int) -> float:
         """Film settling time (dwell before shutter opens) in seconds."""
-        # Dwell is 5°→10° = 5°
-        return (5.0 / 360.0) / fps
+        # Dwell is 350°→360° = 10°
+        return (10.0 / 360.0) / fps
 
 
 SHUTTER = ShutterTiming()
