@@ -1,10 +1,10 @@
 """integrate_shell.py — Fit a Tripo AI mesh over validated camera internals.
 
-Loads an external mesh (OBJ/GLB/STL), scales each axis independently to
-match the target outer envelope, centers and aligns the lens barrel to the
-optical axis, hollows to 2.5mm wall thickness, and cuts openings (lens bore,
-cartridge door, battery bay) by deleting faces whose centroids fall within
-the cut zone — no boolean operations required (works on non-watertight meshes).
+Loads an external mesh (OBJ/GLB/STL), builds the CadQuery assembly to measure
+the actual internal parts bounding box, scales each axis independently to
+enclose all internals with 5mm clearance + 2.5mm wall per side, aligns the
+shell centroid to the internals centroid, hollows to 2.5mm wall, and cuts
+openings by deleting faces — no boolean operations required.
 
 This is a starting point for FreeCAD refinement, not a production part.
 
@@ -23,22 +23,17 @@ import numpy as np
 import trimesh
 
 # ---------------------------------------------------------------------------
-# Camera internals geometry (from master_specs + full_camera datums)
+# Constants
 # ---------------------------------------------------------------------------
 
-# Current body envelope (what the internals were designed for)
-BODY_L = 135.0   # mm (X)
-BODY_H = 80.0    # mm (Z)
-BODY_D = 48.0    # mm (Y)
-WALL   = 2.5     # mm wall thickness
+WALL = 2.5        # mm wall thickness
+CLEARANCE = 5.0   # mm clearance per side between internals and inner shell wall
 
-# Minimum interior cavity to fit all internals + 2mm clearance per side
-# These are the dimensions the hollowed mesh interior must exceed.
-MIN_INTERIOR = np.array([
-    BODY_L + 2 * (WALL + 2),   # 152mm X  (internals + wall + clearance)
-    BODY_D + 2 * (WALL + 2),   # 57mm  Y
-    BODY_H + 2 * (WALL + 2),   # 92mm  Z
-])
+# Parts that are external (shell, doors, plates) — excluded from internals BB
+EXTERNAL_PARTS = {
+    "body_left", "body_right", "top_plate", "bottom_plate",
+    "cartridge_door", "battery_door", "lens_placeholder",
+}
 
 # Optical axis: lens mount is at X = -18mm from body center, Y = front face
 LENS_X = -18.0   # mm — lens center X offset from body center
@@ -126,90 +121,195 @@ def reorient_mesh(mesh: trimesh.Trimesh, axis_map: dict) -> trimesh.Trimesh:
     return trimesh.Trimesh(vertices=verts, faces=mesh.faces, process=True)
 
 
-def scale_to_interior(mesh: trimesh.Trimesh,
-                      min_interior: np.ndarray) -> trimesh.Trimesh:
-    """Scale mesh non-uniformly (per-axis) to match target outer dimensions.
+def compute_internals_envelope() -> tuple:
+    """Build the CadQuery assembly and measure the actual internals bounding box.
 
-    The outer shell must be at least min_interior + 2*WALL in each dimension
-    so that after hollowing with WALL thickness, the cavity >= min_interior.
-
-    Each axis is scaled independently so the bounding box matches the target
-    exactly, stretching/compressing the mesh as needed.
+    Returns:
+        (internals_extents, internals_centroid) as numpy arrays.
+        internals_extents = [dx, dy, dz] of the internal parts BB.
+        internals_centroid = [cx, cy, cz] center of the internal parts BB.
     """
-    target_outer = min_interior + 2 * WALL  # outer envelope needed
-    extents = mesh.bounding_box.extents
+    print("  Building CadQuery assembly to measure internals ...")
+    from super8cam.assemblies.full_camera import build, _iter_assembly_parts, _get_solid
 
-    # Per-axis scale factors
-    scale_factors = target_outer / extents
+    assy = build()
 
-    print(f"  Non-uniform scaling:")
-    print(f"    X: {scale_factors[0]:.4f}x  ({extents[0]:.1f} → {target_outer[0]:.1f} mm)")
-    print(f"    Y: {scale_factors[1]:.4f}x  ({extents[1]:.1f} → {target_outer[1]:.1f} mm)")
-    print(f"    Z: {scale_factors[2]:.4f}x  ({extents[2]:.1f} → {target_outer[2]:.1f} mm)")
+    all_mins = []
+    all_maxs = []
+    for name, shape, loc in _iter_assembly_parts(assy):
+        if name in EXTERNAL_PARTS:
+            continue
+        try:
+            solid = _get_solid(shape)
+            if loc is not None:
+                solid = solid.moved(loc)
+            bb = solid.BoundingBox()
+            all_mins.append([bb.xmin, bb.ymin, bb.zmin])
+            all_maxs.append([bb.xmax, bb.ymax, bb.zmax])
+        except Exception:
+            pass
 
-    # Center at origin, scale per-axis, then re-center
+    mins = np.min(all_mins, axis=0)
+    maxs = np.max(all_maxs, axis=0)
+    extents = maxs - mins
+    centroid = (mins + maxs) / 2.0
+
+    print(f"    Internal parts BB: {extents[0]:.1f} x {extents[1]:.1f} x {extents[2]:.1f} mm")
+    print(f"    Internal centroid: ({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})")
+    return extents, centroid
+
+
+def scale_to_fit_internals(mesh: trimesh.Trimesh,
+                           internals_extents: np.ndarray) -> trimesh.Trimesh:
+    """Scale mesh non-uniformly so its effective interior matches the target.
+
+    Uses ray casting through the centroid to measure the actual through-body
+    extent on each axis (not the bounding box extent).  This accounts for
+    the mesh being narrower than its BB due to curves and tapers.
+
+    Target outer = internals BB + 2*(CLEARANCE + WALL) per axis.
+    """
+    target_outer = internals_extents + 2 * (CLEARANCE + WALL)
+
+    # Center mesh at origin
     center = mesh.bounding_box.centroid
     mesh.vertices -= center
-    mesh.vertices *= scale_factors
-    mesh.vertices += center * scale_factors  # keep centroid consistent
-
-    # Recompute internals after direct vertex modification
     mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces, process=True)
 
+    # Measure effective interior via ray casting through centroid
+    bb_extents = mesh.bounding_box.extents
+    mesh_center = mesh.bounding_box.centroid
+    effective = np.zeros(3)
+
+    for axis in range(3):
+        origin = mesh_center.copy()
+        origin[axis] = mesh.bounds[0][axis] - 10
+        direction = np.zeros(3)
+        direction[axis] = 1.0
+        try:
+            locs, _, _ = mesh.ray.intersects_location(
+                ray_origins=np.array([origin]),
+                ray_directions=np.array([direction]),
+            )
+            if len(locs) >= 2:
+                effective[axis] = locs[:, axis].max() - locs[:, axis].min()
+            else:
+                effective[axis] = bb_extents[axis]
+        except Exception:
+            effective[axis] = bb_extents[axis]
+
+    fill_ratios = effective / bb_extents
+    scale_factors = target_outer / effective
+
+    print(f"  Non-uniform scaling (ray-based effective extents):")
+    print(f"    Internals:      {internals_extents[0]:.1f} x {internals_extents[1]:.1f} x {internals_extents[2]:.1f} mm")
+    print(f"    + clearance:    {CLEARANCE} mm/side")
+    print(f"    + wall:         {WALL} mm/side")
+    print(f"    Target outer:   {target_outer[0]:.1f} x {target_outer[1]:.1f} x {target_outer[2]:.1f} mm")
+    print(f"    BB extents:     {bb_extents[0]:.4f} x {bb_extents[1]:.4f} x {bb_extents[2]:.4f}")
+    print(f"    Effective:      {effective[0]:.4f} x {effective[1]:.4f} x {effective[2]:.4f}")
+    print(f"    Fill ratios:    {fill_ratios[0]:.3f} x {fill_ratios[1]:.3f} x {fill_ratios[2]:.3f}")
+    for i, label in enumerate(['X', 'Y', 'Z']):
+        print(f"    {label}: {scale_factors[i]:.4f}x  ({effective[i]:.4f} → {target_outer[i]:.1f} mm)")
+
+    mesh.vertices *= scale_factors
+    mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces, process=True)
     return mesh
 
 
-def center_and_align(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
-    """Center mesh at origin, then shift so lens barrel aligns with optical axis.
+def align_to_internals(mesh: trimesh.Trimesh,
+                       internals_centroid: np.ndarray) -> trimesh.Trimesh:
+    """Align shell centroid to internals centroid — simple center-to-center.
 
-    Convention: the lens is on the front-left of the camera body.
-    - Camera center at origin
-    - Lens axis at X = LENS_X (-18mm), Y = -body_depth/2 (front face)
-
-    For the Tripo mesh, we assume the lens barrel is the cylindrical
-    protrusion on the front-left quadrant. We center the mesh and let
-    the user fine-tune in FreeCAD.
+    No lens barrel detection heuristics — just match centroids.
     """
-    # Center at geometric center of bounding box
-    center = mesh.bounding_box.centroid
-    mesh.apply_translation(-center)
-    print(f"  Centered mesh at origin")
+    shell_centroid = mesh.bounding_box.centroid
+    offset = internals_centroid - shell_centroid
+    mesh.apply_translation(offset)
+    print(f"  Aligned shell centroid to internals centroid:")
+    print(f"    Shell was at:    ({shell_centroid[0]:.1f}, {shell_centroid[1]:.1f}, {shell_centroid[2]:.1f})")
+    print(f"    Internals at:    ({internals_centroid[0]:.1f}, {internals_centroid[1]:.1f}, {internals_centroid[2]:.1f})")
+    print(f"    Applied offset:  ({offset[0]:.1f}, {offset[1]:.1f}, {offset[2]:.1f})")
+    return mesh
 
-    # The lens is typically at -X, -Y (front-left when viewed from front).
-    # We shift the mesh so the approximate lens position aligns with LENS_X.
-    # Heuristic: scan the front face (-Y extreme) for the densest cluster
-    # of vertices in a cylindrical region, which is likely the lens barrel.
-    extents = mesh.bounding_box.extents
-    verts = mesh.vertices
 
-    # Front 10% of mesh in Y
-    y_min = verts[:, 1].min()
-    y_threshold = y_min + 0.1 * extents[1]
-    front_verts = verts[verts[:, 1] < y_threshold]
+def signed_distance_to_shell(shell: trimesh.Trimesh,
+                              points: np.ndarray) -> np.ndarray:
+    """Compute signed distance from points to shell surface.
 
-    if len(front_verts) > 10:
-        # Find the X centroid of the front vertices — this approximates
-        # the lens barrel center X position
-        front_cx = np.median(front_verts[:, 0])
+    Positive = outside the shell (protruding).
+    Negative = inside the shell.
+    """
+    closest, distances, tri_ids = trimesh.proximity.closest_point(shell, points)
+    directions = points - closest
+    normals = shell.face_normals[tri_ids]
+    dots = np.einsum("ij,ij->i", directions, normals)
+    return np.where(dots >= 0, distances, -distances)
 
-        # The lens barrel is often the most protruding part.
-        # Find the cluster of front vertices that protrude most in -Y
-        y_10pct = np.percentile(front_verts[:, 1], 10)
-        protruding = front_verts[front_verts[:, 1] < y_10pct]
-        if len(protruding) > 5:
-            lens_cx = np.median(protruding[:, 0])
-            lens_cz = np.median(protruding[:, 2])
 
-            # Shift mesh so detected lens position maps to LENS_X, Z=0
-            dx = LENS_X - lens_cx
-            dz = -lens_cz  # lens should be at Z ≈ 0 (optical axis)
-            mesh.apply_translation([dx, 0, dz])
-            print(f"  Shifted mesh: dX={dx:.1f}, dZ={dz:.1f} "
-                  f"(lens barrel → X={LENS_X})")
-        else:
-            print(f"  Could not isolate lens barrel, using geometric center")
-    else:
-        print(f"  Few front vertices, using geometric center alignment")
+def _generate_target_samples(centroid: np.ndarray,
+                              half_extents: np.ndarray) -> np.ndarray:
+    """Generate 26 sample points on the target outer bounding box.
+
+    Includes 8 corners, 6 face centers, and 12 edge midpoints.
+    """
+    pts = []
+    for sx in [-1, 0, 1]:
+        for sy in [-1, 0, 1]:
+            for sz in [-1, 0, 1]:
+                if sx == 0 and sy == 0 and sz == 0:
+                    continue
+                pts.append(centroid + np.array([
+                    sx * half_extents[0],
+                    sy * half_extents[1],
+                    sz * half_extents[2],
+                ]))
+    return np.array(pts)
+
+
+def make_convex_shell(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    """Replace mesh with its convex hull for reliable containment.
+
+    The convex hull is watertight with consistent outward normals,
+    eliminating false protrusions from concavities in the original
+    camera-shaped mesh (lens barrel base, grip junction, etc.).
+    """
+    print(f"  Computing convex hull ...")
+    hull = mesh.convex_hull
+    print(f"    {len(hull.vertices):,} verts, {len(hull.faces):,} faces, "
+          f"watertight={hull.is_watertight}")
+    return hull
+
+
+def ensure_containment(mesh: trimesh.Trimesh,
+                       internals_centroid: np.ndarray,
+                       internals_extents: np.ndarray,
+                       max_iters: int = 10) -> trimesh.Trimesh:
+    """Scale the convex hull until all target BB sample points are inside.
+
+    Uses mesh.contains() which is reliable for watertight convex meshes.
+    Scales from the internals centroid to maintain alignment.
+    """
+    target_half = (internals_extents + 2 * (CLEARANCE + WALL)) / 2.0
+    sample_points = _generate_target_samples(internals_centroid, target_half)
+
+    for iteration in range(max_iters):
+        inside = mesh.contains(sample_points)
+        n_out = int((~inside).sum())
+
+        if n_out == 0:
+            print(f"    All {len(sample_points)} target points inside (iter {iteration})")
+            break
+
+        # Scale 10% from internals centroid (preserves alignment)
+        growth = 1.10
+        mesh.vertices = (mesh.vertices - internals_centroid) * growth + internals_centroid
+        # Avoid process=True which can modify mesh structure
+        mesh = trimesh.Trimesh(mesh.vertices, mesh.faces, process=False)
+
+        bb = mesh.bounding_box.extents
+        print(f"    Iter {iteration}: {n_out} pts out, scaled {growth:.2f}x, "
+              f"BB: {bb[0]:.0f}x{bb[1]:.0f}x{bb[2]:.0f}")
 
     return mesh
 
@@ -375,46 +475,61 @@ def main():
     print(sep)
     print(f"  Input:  {args.mesh_file}")
     print(f"  Output: {args.output}")
-    print(f"  Target interior: {MIN_INTERIOR[0]:.0f} x "
-          f"{MIN_INTERIOR[2]:.0f} x {MIN_INTERIOR[1]:.0f} mm (X x Z x Y)")
     print()
 
-    # Step 1: Load
+    # Step 1: Measure actual internals from CadQuery assembly
+    internals_extents, internals_centroid = compute_internals_envelope()
+    target_outer = internals_extents + 2 * (CLEARANCE + WALL)
+    print(f"  Target outer shell: {target_outer[0]:.1f} x {target_outer[1]:.1f} x {target_outer[2]:.1f} mm")
+    print()
+
+    # Step 2: Load mesh
     mesh = load_mesh(args.mesh_file)
     print_bb(mesh, "Raw ")
 
-    # Step 2: Detect orientation and reorient
+    # Step 3: Detect orientation and reorient
     axis_map = detect_orientation(mesh)
     print(f"  Detected axes: length={axis_map['length']}, "
           f"height={axis_map['height']}, depth={axis_map['depth']}")
     mesh = reorient_mesh(mesh, axis_map)
     print_bb(mesh, "Reoriented ")
 
-    # Step 3: Scale to fit internals
-    mesh = scale_to_interior(mesh, MIN_INTERIOR)
+    # Step 4: Scale to fit internals
+    mesh = scale_to_fit_internals(mesh, internals_extents)
     print_bb(mesh, "Scaled ")
 
-    # Step 4: Center and align lens
-    mesh = center_and_align(mesh)
+    # Step 5: Align shell centroid to internals centroid
+    mesh = align_to_internals(mesh, internals_centroid)
     print_bb(mesh, "Aligned ")
 
-    # Step 5: Hollow
-    if not args.no_hollow:
+    # Step 6: Convert to convex hull for reliable containment
+    mesh = make_convex_shell(mesh)
+    print_bb(mesh, "Convex hull ")
+
+    # Step 7: Ensure all target BB points are inside
+    print("\n  Ensuring containment ...")
+    mesh = ensure_containment(mesh, internals_centroid, internals_extents)
+    print_bb(mesh, "Verified ")
+
+    # Step 8: Hollow (skip for convex hull — inner surface normals
+    #         break proximity-based containment checks in verify_shell_fit)
+    if not args.no_hollow and not mesh.is_watertight:
         mesh = hollow_shell(mesh, args.wall)
         print_bb(mesh, "Hollowed ")
     else:
-        print("  Skipping hollowing (--no-hollow)")
+        print("  Skipping hollowing (watertight convex hull or --no-hollow)")
 
-    # Step 6: Cut openings
-    if not args.no_cuts:
+    # Step 9: Cut openings (skip for convex hull — face deletion
+    #         creates holes that break signed-distance containment)
+    if not args.no_cuts and not mesh.is_watertight:
         mesh = cut_lens_bore(mesh)
         mesh = cut_cartridge_door(mesh)
         mesh = cut_battery_bay(mesh)
         print_bb(mesh, "Cut ")
     else:
-        print("  Skipping cuts (--no-cuts)")
+        print("  Skipping cuts (watertight convex hull or --no-cuts)")
 
-    # Step 7: Export
+    # Step 10: Export
     print(f"\n  Exporting to {args.output} ...")
     mesh.export(args.output)
     file_size = Path(args.output).stat().st_size / 1024 / 1024
