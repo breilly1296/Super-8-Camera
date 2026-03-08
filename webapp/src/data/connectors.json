@@ -1,0 +1,9 @@
+{
+  "J1": { "id": "J1", "pinCount": 2, "family": "VH", "wireColors": ["red","black"], "signals": ["MOTOR+","MOTOR-"], "from": "MOD-500", "to": "MOD-300", "maxCurrentMa": 800 },
+  "J2": { "id": "J2", "pinCount": 3, "family": "XH", "wireColors": ["orange","yellow","brown"], "signals": ["ENCODER_A","ENCODER_B","ENCODER_GND"], "from": "MOD-200", "to": "MOD-500", "maxCurrentMa": 20 },
+  "J3": { "id": "J3", "pinCount": 4, "family": "XH", "wireColors": ["red","black","white","green"], "signals": ["VBATT","GND","BATT_SENSE","THERM"], "from": "MOD-600", "to": "MOD-500", "maxCurrentMa": 1200 },
+  "J4": { "id": "J4", "pinCount": 5, "family": "XH", "wireColors": ["blue","violet","grey","white","black"], "signals": ["FPS_SEL_A","FPS_SEL_B","TRIG_SW","LED_STATUS","SIG_GND"], "from": "MOD-500", "to": "MOD-100", "maxCurrentMa": 50 },
+  "J5": { "id": "J5", "pinCount": 6, "family": "XH", "wireColors": ["red","orange","yellow","green","blue","black"], "signals": ["CART_DET","FILM_END","DOOR_SW","NOTCH_SNS","LAMP_DRV","DET_GND"], "from": "MOD-400", "to": "MOD-500", "maxCurrentMa": 100 },
+  "J6": { "id": "J6", "pinCount": 7, "family": "XH", "wireColors": ["red","orange","yellow","green","blue","violet","black"], "signals": ["SDA","SCL","MOSI","MISO","SCK","CS_EXP","DBUS_GND"], "from": "MOD-500", "to": "MOD-700", "maxCurrentMa": 30 },
+  "J7": { "id": "J7", "pinCount": 8, "family": "XH", "wireColors": ["red","orange","yellow","green","blue","violet","grey","black"], "signals": ["UART_TX","UART_RX","I2C_SDA","I2C_SCL","PWM_LIGHT","AUX_SENSE","3V3_OUT","DBG_GND"], "from": "MOD-500", "to": "MOD-600", "maxCurrentMa": 200 }
+}

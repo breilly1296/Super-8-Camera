@@ -112,6 +112,34 @@ The expansion slot position, connector pinout, and dovetail mounting are part of
 
 **Self-repairable.** Every part has a replacement procedure, tools list, and cost estimate. The generated repair guide PDF walks through symptom diagnosis, module swap, and reassembly verification.
 
+## Interactive Web Explorer
+
+A local web application for browsing the camera design — 3D model viewers, build guide, repair manual, and parts store.
+
+### Quick Start
+
+```bash
+cd webapp
+npm install
+npm run dev
+```
+
+Opens at [http://localhost:3000](http://localhost:3000). Features:
+
+- **Home** — Full 3D assembly viewer, key stats, module overview
+- **Modules** — 7 field-swappable modules with interactive 3D part viewers
+- **Build Guide** — Step-by-step assembly with 3D viewer that updates at each step
+- **Repair Guide** — Symptom-based diagnosis with highlighted 3D part views
+- **Specs** — All specifications, cam timing diagram, validation results
+- **Store** — Complete spare parts catalog (35+ SKUs)
+- **About** — Framework for Film philosophy, interface standard, expansion slot docs
+
+To regenerate data from the Python package (optional):
+
+```bash
+python webapp/generate_data.py
+```
+
 ## Build Instructions
 
 ### Prerequisites

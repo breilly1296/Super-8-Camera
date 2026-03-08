@@ -1,0 +1,177 @@
+[
+  {
+    "id": "film-scratches",
+    "symptom": "Film scratches appearing",
+    "description": "Visible scratches along the length of developed film, typically on the base (shiny) side.",
+    "affectedModule": "MOD-100",
+    "affectedParts": ["S8C-102", "S8C-105"],
+    "highlightPart": "pressure_plate",
+    "difficulty": 2,
+    "difficultyLabel": "Moderate",
+    "estimatedMinutes": 10,
+    "tools": ["1.5 mm hex key", "tweezers", "loupe (10x)"],
+    "partsNeeded": ["S8C-102 Pressure Plate ($18)", "S8C-105 Film Channel ($5)"],
+    "steps": [
+      "Remove cartridge and open cartridge door",
+      "Inspect pressure plate under 10x loupe for burrs, scratches, or debris",
+      "Inspect film channel guide surfaces for rough spots or embedded particles",
+      "If pressure plate shows wear marks deeper than 0.01 mm, replace it (see S8C-102 procedure)",
+      "If film channel shows scratches, unclip and replace (see S8C-105 procedure)",
+      "Clean all film-contact surfaces with lens tissue and isopropyl alcohol",
+      "Run a test strip through the gate to verify smooth transport"
+    ]
+  },
+  {
+    "id": "inconsistent-spacing",
+    "symptom": "Inconsistent frame spacing",
+    "description": "Frames on developed film are not evenly spaced — some overlap or have gaps between them.",
+    "affectedModule": "MOD-100",
+    "affectedParts": ["S8C-103", "S8C-104"],
+    "highlightPart": "claw_mechanism",
+    "difficulty": 3,
+    "difficultyLabel": "Advanced",
+    "estimatedMinutes": 30,
+    "tools": ["1.5 mm hex key", "tweezers", "needle-nose pliers", "dial indicator"],
+    "partsNeeded": ["S8C-103 Claw Mechanism ($35)"],
+    "steps": [
+      "Remove film gate and pressure plate to access claw",
+      "Inspect claw tip under magnification — look for wear, rounding, or chipping",
+      "Check claw pivot pin for play (should be zero)",
+      "Manually rotate the shaft and watch claw engagement — it should enter perforations cleanly",
+      "If claw tip shows visible wear, replace the claw mechanism (see S8C-103 procedure)",
+      "If engagement is sloppy despite good claw, check cam follower (see S8C-104 procedure)",
+      "After replacement, verify 4.234 mm pulldown stroke with dial indicator"
+    ]
+  },
+  {
+    "id": "motor-no-advance",
+    "symptom": "Motor runs but film doesn't advance",
+    "description": "Camera motor spins audibly but film stays stationary in the cartridge.",
+    "affectedModule": "MOD-300",
+    "affectedParts": ["S8C-303"],
+    "highlightPart": "gearbox_housing",
+    "difficulty": 2,
+    "difficultyLabel": "Moderate",
+    "estimatedMinutes": 20,
+    "tools": ["2.0 mm hex key", "2.5 mm hex key", "needle-nose pliers"],
+    "partsNeeded": ["S8C-303 Gear Set ($15)"],
+    "steps": [
+      "Open gearbox housing (remove 4x cover screws)",
+      "Inspect all 4 gears for stripped, chipped, or worn teeth",
+      "Check that motor pinion meshes with stage 1 gear — look for a gap",
+      "Check stage 2 output gear engagement with main shaft",
+      "If any gear teeth are damaged, replace the complete gear set",
+      "Apply fresh Superlube grease to all gear teeth",
+      "Reassemble and run motor for 10 seconds to break in new gears"
+    ]
+  },
+  {
+    "id": "camera-wont-start",
+    "symptom": "Camera won't start",
+    "description": "Pressing the trigger produces no motor response — camera appears completely dead.",
+    "affectedModule": "MOD-500",
+    "affectedParts": ["S8C-501"],
+    "highlightPart": "pcb_bracket",
+    "difficulty": 2,
+    "difficultyLabel": "Moderate",
+    "estimatedMinutes": 15,
+    "tools": ["#1 Phillips screwdriver", "multimeter"],
+    "partsNeeded": ["Fresh 4x AA batteries", "S8C-501 PCB ($25) if board is damaged"],
+    "steps": [
+      "Check batteries — measure voltage with multimeter (should be > 5.0V total)",
+      "Replace batteries if voltage is low",
+      "Check battery contacts for corrosion — clean with pencil eraser if needed",
+      "Verify J3 power connector is fully seated on PCB",
+      "Check trigger switch — press trigger and listen for microswitch click",
+      "Verify J4 connector (trigger signal) is seated on PCB",
+      "If all connections are good and batteries are fresh, the PCB may need replacement"
+    ]
+  },
+  {
+    "id": "blurry-images",
+    "symptom": "Blurry images",
+    "description": "All frames appear soft or out of focus, even with a sharp lens and proper focus setting.",
+    "affectedModule": "MOD-700",
+    "affectedParts": ["S8C-701"],
+    "highlightPart": "lens_mount",
+    "difficulty": 2,
+    "difficultyLabel": "Moderate",
+    "estimatedMinutes": 15,
+    "tools": ["1.5 mm hex key", "depth gauge", "lens tissue"],
+    "partsNeeded": ["S8C-701 Lens Mount ($35) if flange distance is wrong"],
+    "steps": [
+      "Remove lens and inspect rear element for dust, fingerprints, or damage",
+      "Clean lens with lens tissue and blower",
+      "Check lens mount flange distance with depth gauge — must be 17.526 mm +/- 0.02 mm",
+      "If flange distance is off, the mount may have shifted — remove and reseat it",
+      "Inspect film gate aperture for debris that could scatter light",
+      "Check pressure plate — if film isn't flat against the gate, images will be soft",
+      "If mount threads are damaged, replace the lens mount (see S8C-701 procedure)"
+    ]
+  },
+  {
+    "id": "light-leaks",
+    "symptom": "Light leaks",
+    "description": "Developed film shows fogging, streaks, or bright spots from stray light entering the camera body.",
+    "affectedModule": "MOD-400",
+    "affectedParts": ["S8C-402"],
+    "highlightPart": "cartridge_door",
+    "difficulty": 1,
+    "difficultyLabel": "Easy",
+    "estimatedMinutes": 10,
+    "tools": ["2 mm punch", "flashlight"],
+    "partsNeeded": ["S8C-402 Cartridge Door ($10)", "Light seal foam tape"],
+    "steps": [
+      "In a dark room, place a flashlight inside the camera body",
+      "Inspect all seams, door edges, and joints for visible light escaping",
+      "Check cartridge door foam seal — replace if compressed, torn, or missing",
+      "Check battery door seal condition",
+      "Inspect body halves junction — re-torque M2.5 screws if loose",
+      "If cartridge door seal groove is damaged, replace the door",
+      "Re-test with flashlight after repairs"
+    ]
+  },
+  {
+    "id": "speed-inconsistency",
+    "symptom": "Speed fluctuation / flickering",
+    "description": "Projected film shows visible speed changes or exposure flicker between frames.",
+    "affectedModule": "MOD-300",
+    "affectedParts": ["S8C-303", "S8C-202"],
+    "highlightPart": "main_shaft",
+    "difficulty": 2,
+    "difficultyLabel": "Moderate",
+    "estimatedMinutes": 20,
+    "tools": ["2.0 mm hex key", "stroboscope or phone strobe app"],
+    "partsNeeded": ["S8C-303 Gear Set ($15)", "S8C-BEARING-4PK Bearings ($3)"],
+    "steps": [
+      "Run camera with no cartridge and listen for irregular motor sound",
+      "Check gear teeth for wear or debris (open gearbox housing)",
+      "Spin main shaft by hand — it should rotate with uniform resistance",
+      "If shaft feels gritty or has dead spots, replace bearings",
+      "If gears show wear, replace gear set and lubricate",
+      "Check encoder flag on shutter disc — should be clean and undamaged",
+      "If motor itself is failing, replace the motor (S8C-301)"
+    ]
+  },
+  {
+    "id": "trigger-issues",
+    "symptom": "Trigger doesn't respond / mushy feel",
+    "description": "The trigger feels soft, doesn't click, or requires excessive force. Camera may start intermittently.",
+    "affectedModule": "STRUCTURE",
+    "affectedParts": ["S8C-804"],
+    "highlightPart": "trigger",
+    "difficulty": 2,
+    "difficultyLabel": "Moderate",
+    "estimatedMinutes": 15,
+    "tools": ["2.0 mm hex key", "needle-nose pliers"],
+    "partsNeeded": ["S8C-804 Trigger Assembly ($12)"],
+    "steps": [
+      "Remove bottom plate to access trigger mechanism from below",
+      "Check trigger return spring — should push lever back firmly",
+      "Listen for microswitch click when pressing trigger",
+      "Check J4 connector pin 3 (TRIG_SW) for continuity when pressed",
+      "If spring is weak or broken, or microswitch doesn't click, replace trigger assembly",
+      "Reinstall and verify clean, crisp trigger action"
+    ]
+  }
+]

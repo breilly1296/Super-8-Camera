@@ -1,0 +1,102 @@
+[
+  {
+    "step": 1,
+    "title": "Start with Bare Chassis",
+    "description": "Begin by placing both body halves on a clean, well-lit work surface. These form the structural foundation — all other modules bolt or snap into the chassis.",
+    "parts": ["body_left", "body_right"],
+    "partNumbers": ["S8C-801", "S8C-802"],
+    "tools": ["2.5 mm hex key", "soft mat or towel"],
+    "estimatedMinutes": 2,
+    "tips": ["Verify body halves mate cleanly before proceeding", "Work on a lint-free surface to keep film path clean"]
+  },
+  {
+    "step": 2,
+    "title": "Install Film Transport Module",
+    "description": "The heart of the camera. Mount the brass film gate with its precision aperture, slide in the spring-steel pressure plate, install the claw mechanism with its cam follower, snap in the film channel, and press the registration pin into place.",
+    "parts": ["film_gate", "pressure_plate", "claw_mechanism", "cam", "cam_follower", "secondary_eccentric", "film_channel", "registration_pin"],
+    "partNumbers": ["S8C-101", "S8C-102", "S8C-103", "S8C-104", "S8C-105", "S8C-106"],
+    "tools": ["1.5 mm hex key", "tweezers", "loupe (10x)", "0.8 mm punch"],
+    "estimatedMinutes": 15,
+    "tips": ["Handle the brass film gate by its edges only — fingerprints on the aperture affect image quality", "Verify registration pin protrusion is exactly 0.5 mm with a depth gauge", "The claw e-clip is tiny — work over a tray"]
+  },
+  {
+    "step": 3,
+    "title": "Install Shutter Module",
+    "description": "Slide the main shaft through both bearing bores, then mount the 180-degree shutter disc onto the shaft with its keyway aligned. The disc spins between the lens and film gate.",
+    "parts": ["shutter_disc", "main_shaft"],
+    "partNumbers": ["S8C-201", "S8C-202"],
+    "tools": ["1.5 mm hex key", "shaft alignment jig", "feeler gauge (0.3 mm)"],
+    "estimatedMinutes": 8,
+    "tips": ["Check shaft runout < 0.01 mm TIR before installing disc", "Verify 0.3 mm clearance between shutter and gate with feeler gauge", "Spin disc by hand — it should rotate freely with zero rubbing"]
+  },
+  {
+    "step": 4,
+    "title": "Install Drivetrain",
+    "description": "Mount the motor into its bracket, install the 2-stage Delrin gear set into the gearbox housing, and connect the gearbox output to the main shaft.",
+    "parts": ["motor_mount", "gearbox_housing", "stage1_pinion", "stage1_gear", "stage2_pinion", "stage2_gear"],
+    "partNumbers": ["S8C-301", "S8C-302", "S8C-303"],
+    "tools": ["2.0 mm hex key", "2.5 mm hex key", "needle-nose pliers", "Superlube grease"],
+    "estimatedMinutes": 12,
+    "tips": ["Apply a small amount of Superlube grease to gear teeth before assembly", "Verify gear mesh by hand rotation — no binding or skipping", "Motor connector J1 routes to the PCB later"]
+  },
+  {
+    "step": 5,
+    "title": "Install Cartridge Bay",
+    "description": "Mount the cartridge receiver into the body right half. The receiver locates the Kodak cartridge precisely relative to the film gate.",
+    "parts": ["cartridge_receiver"],
+    "partNumbers": ["S8C-401"],
+    "tools": ["2.0 mm hex key"],
+    "estimatedMinutes": 3,
+    "tips": ["Align receiver registration pins with body holes before tightening", "Test with a cartridge — it should click into the latch"]
+  },
+  {
+    "step": 6,
+    "title": "Mount Electronics",
+    "description": "Install the PCB bracket with standoffs, mount the main control board, and begin routing the JST wiring harness.",
+    "parts": ["pcb_bracket"],
+    "partNumbers": ["S8C-501"],
+    "tools": ["#1 Phillips screwdriver", "wire cutters"],
+    "estimatedMinutes": 8,
+    "tips": ["Don't connect JST connectors yet — wait until all modules are in place", "Route wires along body channels to avoid pinch points"]
+  },
+  {
+    "step": 7,
+    "title": "Install Power System",
+    "description": "Install the bottom plate with its 1/4-20 tripod insert, and snap the battery door into place.",
+    "parts": ["battery_door", "bottom_plate"],
+    "partNumbers": ["S8C-601", "S8C-602"],
+    "tools": ["2.0 mm hex key"],
+    "estimatedMinutes": 5,
+    "tips": ["Verify tripod insert thread engagement before final tightening", "Battery door hinge ears should flex — don't force them"]
+  },
+  {
+    "step": 8,
+    "title": "Install Optics",
+    "description": "Press the C-mount lens ring into the front face bore and mount the Galilean viewfinder on top.",
+    "parts": ["lens_mount", "viewfinder"],
+    "partNumbers": ["S8C-701", "S8C-702"],
+    "tools": ["1.5 mm hex key", "depth gauge"],
+    "estimatedMinutes": 5,
+    "tips": ["Align lens mount locating pin at 12 o'clock position", "Verify 17.526 mm flange-to-film distance with depth gauge — this is critical for focus"]
+  },
+  {
+    "step": 9,
+    "title": "Close Body & Install Accessories",
+    "description": "Install the top plate, cartridge door with hinge pin, and trigger mechanism. Connect all JST connectors to the PCB.",
+    "parts": ["top_plate", "cartridge_door", "trigger"],
+    "partNumbers": ["S8C-803", "S8C-402", "S8C-804"],
+    "tools": ["2.0 mm hex key", "2.5 mm hex key", "2 mm punch"],
+    "estimatedMinutes": 10,
+    "tips": ["Connect J1-J7 in order — each has a unique pin count so they can't be swapped", "Check cartridge door light-trap foam is intact", "Verify trigger clicks the microswitch cleanly"]
+  },
+  {
+    "step": 10,
+    "title": "Attach Lens & Final Check",
+    "description": "Thread any C-mount lens onto the mount. Insert batteries, load a test cartridge, and verify operation at both 18fps and 24fps.",
+    "parts": [],
+    "partNumbers": [],
+    "tools": ["C-mount lens", "4x AA batteries", "test cartridge (optional)"],
+    "estimatedMinutes": 5,
+    "tips": ["Listen for smooth, consistent motor operation at both speeds", "Run for 30 seconds to verify speed stability", "Check viewfinder bright-line frame alignment matches taking lens field of view"]
+  }
+]

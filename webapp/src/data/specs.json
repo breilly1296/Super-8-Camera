@@ -1,0 +1,128 @@
+{
+  "film": {
+    "title": "Kodak Super 8 Film",
+    "specs": [
+      { "label": "Frame Size", "value": "5.79 x 4.01 mm" },
+      { "label": "Perf Pitch", "value": "4.234 mm" },
+      { "label": "Perf Size", "value": "1.143 x 0.914 mm" },
+      { "label": "Film Width", "value": "8.0 mm" },
+      { "label": "Film Thickness", "value": "0.155 mm (base 0.115 + emulsion 0.040)" }
+    ]
+  },
+  "lens": {
+    "title": "C-Mount Lens Standard",
+    "specs": [
+      { "label": "Thread Diameter", "value": "25.4 mm (1 inch)" },
+      { "label": "Thread Pitch", "value": "32 TPI" },
+      { "label": "Flange Focal Distance", "value": "17.526 mm" },
+      { "label": "Thread Engagement", "value": "3.8 mm" }
+    ]
+  },
+  "body": {
+    "title": "Camera Body",
+    "specs": [
+      { "label": "Envelope", "value": "135 x 80 x 48 mm" },
+      { "label": "Wall Thickness", "value": "2.5 mm" },
+      { "label": "Material", "value": "Aluminum 6061-T6, black anodized" },
+      { "label": "Est. Weight", "value": "~691 g (with batteries)" },
+      { "label": "Body Fillet", "value": "4.0 mm" }
+    ]
+  },
+  "shutter": {
+    "title": "Shutter",
+    "specs": [
+      { "label": "Opening Angle", "value": "180 degrees" },
+      { "label": "Disc Diameter", "value": "28 mm" },
+      { "label": "Disc Thickness", "value": "0.8 mm (aluminum)" },
+      { "label": "Speed @ 18fps", "value": "1/36 s" },
+      { "label": "Speed @ 24fps", "value": "1/48 s" },
+      { "label": "Gate Clearance", "value": "0.3 mm" }
+    ]
+  },
+  "drivetrain": {
+    "title": "Drivetrain",
+    "specs": [
+      { "label": "Motor", "value": "Mabuchi FF-130SH (6V DC)" },
+      { "label": "No-load RPM", "value": "9600 RPM" },
+      { "label": "Gear Ratio", "value": "6:1 (2-stage spur)" },
+      { "label": "Stage 1", "value": "12T / 36T (3:1), module 0.5" },
+      { "label": "Stage 2", "value": "15T / 30T (2:1), module 0.7" },
+      { "label": "Gear Material", "value": "Delrin 150 (POM-H)" },
+      { "label": "Shaft @ 18fps", "value": "1080 RPM" },
+      { "label": "Shaft @ 24fps", "value": "1440 RPM" },
+      { "label": "Efficiency", "value": "~85%" }
+    ]
+  },
+  "power": {
+    "title": "Power System",
+    "specs": [
+      { "label": "Battery", "value": "4x AA alkaline" },
+      { "label": "Voltage (nominal)", "value": "6.0 V" },
+      { "label": "Voltage (min)", "value": "4.0 V" },
+      { "label": "Capacity", "value": "2500 mAh" },
+      { "label": "Est. Runtime", "value": "~300 min @ 24fps" },
+      { "label": "Logic Voltage", "value": "3.3 V" }
+    ]
+  },
+  "tolerances": {
+    "title": "Tolerances",
+    "specs": [
+      { "label": "Gate Aperture", "value": "+/- 0.005 mm" },
+      { "label": "Reg Pin Diameter", "value": "0.813 +0/-0.002 mm" },
+      { "label": "Reg Pin Position", "value": "+/- 0.005 mm" },
+      { "label": "CNC General", "value": "+/- 0.05 mm" },
+      { "label": "CNC Fine", "value": "+/- 0.02 mm" },
+      { "label": "Gate Surface Ra", "value": "0.4 um" },
+      { "label": "Bearing Seat Ra", "value": "0.8 um" },
+      { "label": "Flange Distance Tol", "value": "+/- 0.02 mm" }
+    ]
+  },
+  "pcb": {
+    "title": "Control Board",
+    "specs": [
+      { "label": "MCU", "value": "STM32L031K6 (Cortex-M0+)" },
+      { "label": "Flash / RAM", "value": "32 KB / 8 KB" },
+      { "label": "PCB Size", "value": "55 x 35 mm" },
+      { "label": "Layers", "value": "4" },
+      { "label": "Finish", "value": "ENIG" },
+      { "label": "Connectors", "value": "7x JST (XH + VH)" }
+    ]
+  },
+  "camTiming": {
+    "title": "Cam Timing (360-degree cycle)",
+    "phases": [
+      { "name": "Shutter Open (Exposure)", "startDeg": 0, "endDeg": 180, "color": "#22c55e", "description": "Film is stationary. Light passes through the lens and exposes the frame." },
+      { "name": "Shutter Closed", "startDeg": 180, "endDeg": 185, "color": "#ef4444", "description": "Shutter blade blocks light. Transition to pulldown." },
+      { "name": "Claw Engage", "startDeg": 185, "endDeg": 190, "color": "#f59e0b", "description": "Claw tip enters film perforation (horizontal motion)." },
+      { "name": "Pulldown", "startDeg": 190, "endDeg": 330, "color": "#3b82f6", "description": "Claw pulls film down by exactly one perforation pitch (4.234 mm)." },
+      { "name": "Claw Retract", "startDeg": 330, "endDeg": 335, "color": "#f59e0b", "description": "Claw withdraws from perforation (horizontal motion)." },
+      { "name": "Film Settle (Dwell)", "startDeg": 335, "endDeg": 360, "color": "#a855f7", "description": "Film decelerates and settles. Registration pin holds frame in position." }
+    ]
+  },
+  "validation": [
+    { "name": "Shutter-Gate Clearance", "status": "pass", "value": "0.30 mm", "requirement": ">= 0.20 mm" },
+    { "name": "Claw Pulldown Stroke", "status": "pass", "value": "4.234 mm", "requirement": "= 4.234 +/- 0.003 mm" },
+    { "name": "Registration Accuracy", "status": "pass", "value": "0.019 mm", "requirement": "<= 0.025 mm (Kodak spec)" },
+    { "name": "Flange Focal Distance", "status": "pass", "value": "17.526 mm", "requirement": "17.526 +/- 0.02 mm" },
+    { "name": "Gear Ratio Verification", "status": "pass", "value": "6.000:1", "requirement": "6:1 exact" },
+    { "name": "Motor Speed @ 18fps", "status": "pass", "value": "6480 RPM", "requirement": "<= 9600 RPM (no-load)" },
+    { "name": "Motor Speed @ 24fps", "status": "pass", "value": "8640 RPM", "requirement": "<= 9600 RPM (no-load)" },
+    { "name": "Film Zone Temperature", "status": "pass", "value": "28.4 C", "requirement": "<= 35 C" },
+    { "name": "Bearing Life (L10)", "status": "pass", "value": "> 50,000 hrs", "requirement": "> 10,000 hrs" }
+  ],
+  "toleranceStackup": {
+    "title": "Flange Distance Tolerance Stack-up",
+    "nominalMm": 17.526,
+    "contributors": [
+      { "name": "Lens mount thread engagement", "nominal": 3.800, "tolerance": 0.005, "color": "#d4a843" },
+      { "name": "Mount face to body wall", "nominal": 5.000, "tolerance": 0.020, "color": "#a0a0a8" },
+      { "name": "Body wall thickness", "nominal": 2.500, "tolerance": 0.050, "color": "#a0a0a8" },
+      { "name": "Internal air gap", "nominal": 2.426, "tolerance": 0.010, "color": "#333" },
+      { "name": "Shutter clearance", "nominal": 0.300, "tolerance": 0.010, "color": "#a0a0a8" },
+      { "name": "Shutter thickness", "nominal": 0.800, "tolerance": 0.020, "color": "#a0a0a8" },
+      { "name": "Gate clearance", "nominal": 0.300, "tolerance": 0.010, "color": "#d4a843" },
+      { "name": "Gate thickness", "nominal": 4.000, "tolerance": 0.020, "color": "#d4a843" },
+      { "name": "Channel depth (film plane)", "nominal": 0.200, "tolerance": 0.020, "color": "#d4a843" }
+    ]
+  }
+}

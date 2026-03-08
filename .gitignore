@@ -22,6 +22,11 @@ build/
 .vscode/
 .idea/
 
+# Webapp
+webapp/node_modules/
+webapp/dist/
+webapp/public/models/*.stl
+
 # OS
 .DS_Store
 Thumbs.db

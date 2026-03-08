@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  code, .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+}
+
+@layer components {
+  .badge-pass {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-emerald-900/50 text-emerald-400 border border-emerald-700/50;
+  }
+  .badge-fail {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-red-900/50 text-red-400 border border-red-700/50;
+  }
+  .card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-zinc-700 transition-colors;
+  }
+  .card-interactive {
+    @apply card cursor-pointer hover:bg-zinc-800/50;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-medium rounded-lg transition-colors;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium rounded-lg border border-zinc-700 transition-colors;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #09090b; }
+::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+/* Canvas containers */
+.canvas-container canvas {
+  touch-action: none;
+}
